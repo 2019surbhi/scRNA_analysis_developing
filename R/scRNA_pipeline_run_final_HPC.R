@@ -2,7 +2,7 @@
 
 # This is a script that facilitates running the Ting Lab scRNA seq pipeline on HPC for processing data generated on 10XGenomics platform 
 
-source('/home/sonas/beegfs/scripts/scRNA_pipeline_functions_final_HPC.R')
+source('./scRNA_pipeline_functions_final_HPC.R')
 
 library(argparser)
 
@@ -31,7 +31,7 @@ parser<-add_argument(
   arg='--data_dir',
   short = '-z',
   flag=TRUE,
-  help="Flag set cellranger output ")
+  help="Flag set to read cellranger output from directory instead of hdf5 file")
 
 parser<-add_argument(
   parser,
