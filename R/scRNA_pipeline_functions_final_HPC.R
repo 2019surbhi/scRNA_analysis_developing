@@ -16,13 +16,13 @@ library(future)
 # Data processing libraries
 library(dplyr)
 library(data.table)
-#library(janitor)
+library(janitor)
 library(stringr)
 
 # 'Omics' related packages
 library(Seurat)
 library(cluster)
-#library(factoextra)
+library(factoextra)
 library(clustree)
 library(ggraph)
 
@@ -736,8 +736,8 @@ iterative_clus_by_res<-function(s.obj,res,dims_use,verbose=FALSE)
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   #res<-c(0.2,0.4,0.6,0.8,1,1.2)
-  s.obj<-ScaleData(s.obj)
-  s.obj<-RunPCA(s.obj, npcs=50)
+  #s.obj<-ScaleData(s.obj)
+  #s.obj<-RunPCA(s.obj, npcs=50)
   s.obj<-FindNeighbors(s.obj,dims=dims_use)
   for(i in 1:length(res))
   {

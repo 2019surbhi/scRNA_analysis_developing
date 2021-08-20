@@ -174,15 +174,15 @@ cat("List of arguments:",'\n')
 argv
 cat('\n')
 
-#Save run parameters - find better ways to save this in txt format
-write.table(argv,"run_parameters.txt",sep='\t',col.names=FALSE)
-
 ### Process arguments ###
 
 # Prepare output directory
 if(! dir.exists(argv$out_dir) ){
   dir.create(argv$out_dir)
 }
+
+#Save run parameters - find better ways to save this in txt format
+write.table(argv,paste0(argv$out_dir,"run_parameters.txt"),sep='\t',col.names=FALSE)
 
 # Add separater to run name
 if(argv$run_tag!=''){
@@ -512,6 +512,17 @@ if((argv$save=='integrated')||(argv$save=='both'))
   saveRDS(obj.integrated,file=paste0(argv$out_dir,argv$run_tag,"integrated_only.rds"))
  }
 
+#Scale Features
+  #obj.integrated<-FindVariableFeatures(obj.integrated)
+  all.features<-rownames(obj.integrated)
+  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=argv$verbose)
+ 
+#Run PCA
+
+  obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=argv$verbose)
+  obj.integrated[['sample']]<-obj.integrated[['orig.ident']]
+
+
 if(clustree)
 {
 # Generating clustree and silhouette plots using batch integrated object
@@ -523,7 +534,7 @@ for(i in 1:length(pc))
 #dims<-seq(1,pc[i],by=1)
 obj_clustree<-NULL
 clus_run=paste0(argv$run_tag,'PC',pc[i])
-obj_clustree<-iterative_clus_by_res(obj.integrated,res=res,dims_use=1:pc[i],verbose=argv$verbose)
+obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=argv$verbose)
 print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=argv$out_dir,run_tag=clus_run,verbose=argv$verbose)
 
 print_geneplots_on_clustree_integrated(obj_clustree,prefix="integrated_snn_res.", genes=argv$gene_list, fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
@@ -577,14 +588,6 @@ run_IKAP(obj.integrated, argv$out_dir, verbose=argv$verbose)
 # Begin Seurat clustering algorithm
 
 DefaultAssay(obj.integrated)<-'integrated'
-
-#Run PCA
-  #obj.integrated<-FindVariableFeatures(obj.integrated)
-  all.features<-rownames(obj.integrated)
-  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=argv$verbose)
-  
-  obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=argv$verbose)
-  obj.integrated[['sample']]<-obj.integrated[['orig.ident']]
 
 # PCA Elbow Plot
 options(bitmapType='cairo')
