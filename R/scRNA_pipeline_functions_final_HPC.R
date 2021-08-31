@@ -1,5 +1,4 @@
-
-#last edited: 2021_05_25
+#last edited: 2021_08_24
 
 # scRNA seq Seurat pipeline FUNCTIONS [developer: Surbhi Sona, TING lab]
 # Objective: Processing scRNA seq data on HPC using Seurat workflow
@@ -732,17 +731,14 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-iterative_clus_by_res<-function(s.obj,res,dims_use,verbose=FALSE)
+iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE)
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
-  #res<-c(0.2,0.4,0.6,0.8,1,1.2)
-  #s.obj<-ScaleData(s.obj)
-  #s.obj<-RunPCA(s.obj, npcs=50)
-  s.obj<-FindNeighbors(s.obj,dims=dims_use)
+
+  s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction)
   for(i in 1:length(res))
   {
     s.obj<-FindClusters(s.obj, res=res[i])
-    #obj<-RunUMAP(obj,dims=1:dims_use)
   }
   return(s.obj)
 }
