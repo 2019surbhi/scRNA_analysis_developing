@@ -557,7 +557,7 @@ get_var_genes_plot<-function(s.obj,verbose=FALSE)
 
 # Function to plot consistent UMAPs #
 
-customized_umap<-function(s.obj,umap_cols=NULL,label=FALSE,title=NULL, group=NULL,split=NULL,dot=0.3,save=FALSE,out='./',run_tag,h=8,w=8)
+customized_umap<-function(s.obj,umap_cols=NULL,label=FALSE,title=NULL, group=NULL,split=NULL,dot=0.3,save=FALSE,out='./',run_tag,h=8,w=8,reduction='umap')
 {
     ns<-s.obj@meta.data$sample %>% unique %>% length()
     nc<-ncol(obj)
@@ -576,10 +576,10 @@ customized_umap<-function(s.obj,umap_cols=NULL,label=FALSE,title=NULL, group=NUL
       sub<-paste0('n_cells= ', nc)
     }
 
-    umap<-DimPlot(s.obj, group.by=group, split.by=split,pt.size=dot,cols=umap_cols, label=label)
+    umap<-DimPlot(s.obj, group.by=group, split.by=split,pt.size=dot,cols=umap_cols, label=label,reduction=reduction)
 
-    r1<-range(s.obj@reductions$umap@cell.embeddings[,1])
-    r2<-range(s.obj@reductions$umap@cell.embeddings[,2])
+    r1<-range(s.obj@reductions[[reduction]]@cell.embeddings[,1])
+    r2<-range(s.obj@reductions[[reduction]]@cell.embeddings[,2])
 
     sc<-c((floor(min(r1[1],r2[1]))),
           ceiling((max(r1[2],r2[2]))))
@@ -610,7 +610,7 @@ differential_gene_exp<-function(s.obj,clusters,out_dir='./',run_file_name="",ver
 
 {cat("Finding Differentially expressed cluster markers", '\n')}
   
- DefaultAssay(s.obj)<-"RNA"
+ #DefaultAssay(s.obj)<-"RNA"
  markers<-list()
  
 #Create directory to export markers
@@ -768,49 +768,50 @@ print_clustree_pdf<-function(s.obj,prefix,out_dir='./',run_tag, verbose=FALSE)
   #dev.off()
 }
 
-print_geneplots_on_clustree_RNA<-function(s.obj,genes, prefix, fun_use='median', out_dir, run_tag, verbose=FALSE)
+print_geneplots_on_clustree<-function(s.obj,genes, prefix,assay='integrated', fun_use='median', out_dir, run_tag, verbose=FALSE)
 {
  validated_genes<-genes[which(genes %in% rownames(s.obj)==TRUE)]
  if(length(validated_genes)>0)
 { if(verbose)
    {cat("Generating clustree geneplots",sep='\n')}
   
- if(!dir.exists(paste0(out_dir,'clustree_geneplots/RNA_assay')))
-  {dir.create(paste0(out_dir,file.path("clustree_geneplots","RNA_assay")),recursive=TRUE)}
- out_path<-paste0(out_dir,'clustree_geneplots/RNA_assay/')
+ if(!dir.exists(paste0(out_dir,'clustree_geneplots/',assay,'/')))
+  {dir.create(paste0(out_dir,file.path("clustree_geneplots",assay)),recursive=TRUE)}
+ out_path<-paste0(out_dir,'clustree_geneplots/',assay,'/')
  
- DefaultAssay(s.obj)<-'RNA'
+ DefaultAssay(s.obj)<-assay
  
  for(i in 1:length(validated_genes))
  {
   clustree(s.obj, prefix=prefix,node_colour = validated_genes[i], node_colour_aggr = fun_use)
-  ggsave(paste0(run_tag,'_RNAassay_',validated_genes[i],".png"),path=out_path, width=8.5, height=11,units="in")
+  ggsave(paste0(run_tag,'_',assay,'_',validated_genes[i],".png"),path=out_path, width=8.5, height=11,units="in")
  }
 }else
   {cat("None of the requested gene(s) found!",'\n')}
 }
 
-print_geneplots_on_clustree_integrated<-function(s.obj,genes,  prefix = "integrated_snn_res.", fun_use='median', out_dir, run_tag, verbose=FALSE)
-{
- validated_genes<-genes[which(genes %in% rownames(s.obj)==TRUE)]
- if(length(validated_genes)>0)
-{ if(verbose)
-   {cat("Generating clustree geneplots",sep='\n')}
+#print_geneplots_on_clustree_integrated<-function(s.obj,genes,  prefix = "integrated_snn_res.", fun_use='median', out_dir, run_tag, verbose=FALSE)
+#{
+# validated_genes<-genes[which(genes %in% rownames(s.obj)==TRUE)]
+# if(length(validated_genes)>0)
+#{ if(verbose)
+#   {cat("Generating clustree geneplots",sep='\n')}
   
- if(!dir.exists(paste0(out_dir,'clustree_geneplots/integrated_assay')))
-  {dir.create(paste0(out_dir,file.path("clustree_geneplots","integrated_assay")),recursive=TRUE)}
- out_path<-paste0(out_dir,'clustree_geneplots/integrated_assay/')
+# if(!dir.exists(paste0(out_dir,'clustree_geneplots/integrated_assay')))
+ # {dir.create(paste0(out_dir,file.path("clustree_geneplots","integrated_assay")),recursive=TRUE)}
+# out_path<-paste0(out_dir,'clustree_geneplots/integrated_assay/')
  
- DefaultAssay(s.obj)<-'integrated'
+ #DefaultAssay(s.obj)<-'integrated'
  
- for(i in 1:length(validated_genes))
- {
-  clustree(s.obj, prefix=prefix ,node_colour = validated_genes[i], node_colour_aggr = fun_use)
-  ggsave(paste0(run_tag,'_',validated_genes[i],".png"),path=out_path, width=8.5, height=11,units="in")
- }
-}else
-  {cat("None of the requested gene(s) found!",'\n')}
-}
+# for(i in 1:length(validated_genes))
+# {
+#  clustree(s.obj, prefix=prefix ,node_colour = validated_genes[i], node_colour_aggr = fun_use)
+#  ggsave(paste0(run_tag,'_',validated_genes[i],".png"),path=out_path, width=8.5, height=11,units="in")
+# }
+#}else
+#  {cat("None of the requested gene(s) found!",'\n')}
+#}
+
 
 # Function to generate Silhouette plots #
 get_silhouette_plot<-function(s.obj,reduction='pca',dims=1:50,out_dir='./',run_tag,verbose=FALSE)

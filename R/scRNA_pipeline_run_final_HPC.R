@@ -115,6 +115,13 @@ parser<-add_argument(
 
 parser<-add_argument(
  parser,
+ arg='--qc_only',
+ short='-Q',
+ flag=TRUE,
+ help="Set flag if you wish to run only QC")
+
+parser<-add_argument(
+ parser,
  arg='--qc_plots',
  short='-q',
  flag=TRUE,
@@ -341,6 +348,8 @@ rm(sample.id)
 
 }
 
+## QC ##
+
 if(argv$qc_plots)
 {
 
@@ -426,7 +435,6 @@ dev.off()
 
 rm(threshold_plots)
 rm(cell.data)
-}
 
 if(argv$qc_plots)
 {
@@ -464,6 +472,12 @@ rm(x_lim)
 
 #lapply(X=1:length(obj.list),FUN=function(x){get_histogram(obj.list[[x]],out_path,paste0(argv$run_tag,'post_filter_'))})
 
+}
+}
+
+if(argv$qc_only)
+{
+    quit(save='no')
 }
 
 ### Data pre-processing ###
@@ -562,9 +576,10 @@ clus_run=paste0(argv$run_tag,'PC',pc[i])
 obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=argv$verbose)
 print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=argv$out_dir,run_tag=clus_run,verbose=argv$verbose)
 
-print_geneplots_on_clustree_integrated(obj_clustree,prefix="integrated_snn_res.", genes=argv$gene_list, fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
+print_geneplots_on_clustree(obj_clustree,genes=argv$gene_list,prefix="integrated_snn_res.",assay='integrated' , fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
 
- print_geneplots_on_clustree_RNA(obj_clustree,genes=argv$gene_list, fun_use='median',prefix='integrated_snn_res.', out_dir=argv$out_dir,run_tag=clus_run, verbose=FALSE)
+print_geneplots_on_clustree(obj_clustree,genes=argv$gene_list,prefix="RNA_snn_res.",assay='RNA' , fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
+
 
 }
 
@@ -650,22 +665,19 @@ tab<-table(Idents(obj.integrated),obj.integrated@meta.data$orig.ident)
 
 #Convert to data frame
 tab<-as.data.frame.matrix(tab)
-
-#total<-table(obj.integrated@meta.data$orig.ident)
-#cell.tab<-rbind(tab,total)
+tab<-cbind(rownames(tab),tab)
+colnames(tab)[1]<-'cluster'
 
 #Add totals
 
-tab<-adorn_totals(tab, c("row","col"))
+tab2<-adorn_totals(tab, c("row","col"))
 
-write.csv (tab,paste0(argv$out_dir,argv$run_tag,"cells_by_cluster_by_sample.csv"))
-
-rm(tab)
+write.csv (tab2,paste0(argv$out_dir,argv$run_tag,"cells_by_cluster_by_sample.csv"),row.names = FALSE)
 
 ### Differential gene expression ###
 
 clusters_num<-levels(obj.integrated$seurat_clusters)
-
+DefaultAssay(s.obj)<-"RNA"
 marker.list<-differential_gene_exp(obj.integrated, clusters=clusters_num, out_dir=argv$out_dir,run_file_name=argv$run_tag,verbose=argv$verbose)
 
 ### Feature Plots ###
