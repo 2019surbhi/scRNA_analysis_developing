@@ -419,21 +419,6 @@ get_var_genes<-function(s.obj,out_dir='./',verbose=FALSE)
   fwrite(var.gen.data,f.name,sep='\t',eol ='\n',col.names = TRUE,row.names = TRUE)
 }
 
-#PCA plot function # - from Jean Clemenceau
-plot_pca<-function(sample,cores=argv$cores,verbose=argv$verbose,plotTitle=argv$run_tag,theDims=argv$pca_dimensions){
-  # Split PCs for rendering
-  pca_split<-split(theDims, ceiling(seq_along(theDims)/6))
-
-  # Visualize which genes are associated with reduced dimensions
-  pca_gene_plots<-mclapply(pca_split,function(x){ VizDimLoadings(sample,dims=x,ncol=3,reduction='pca') },mc.cores=cores)
-
-  #Rank PCs by % of variance explained by each, then find elbow
-  pca_elbow_plot <-ElbowPlot(sample,ndims=50)+
-    labs(title=plotTitle)
-  
-return(list(pca_gene_plots,pca_elbow_plot))
-}
-
 
 
 # Funtions to integrate multiple samples with batch correction #
@@ -731,10 +716,10 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE)
+iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE,features=NULL,assay='integrated')
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
-
+  DefaultAssay(s.obj)<-assay
   s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction)
   for(i in 1:length(res))
   {
@@ -789,28 +774,6 @@ print_geneplots_on_clustree<-function(s.obj,genes, prefix,assay='integrated', fu
 }else
   {cat("None of the requested gene(s) found!",'\n')}
 }
-
-#print_geneplots_on_clustree_integrated<-function(s.obj,genes,  prefix = "integrated_snn_res.", fun_use='median', out_dir, run_tag, verbose=FALSE)
-#{
-# validated_genes<-genes[which(genes %in% rownames(s.obj)==TRUE)]
-# if(length(validated_genes)>0)
-#{ if(verbose)
-#   {cat("Generating clustree geneplots",sep='\n')}
-  
-# if(!dir.exists(paste0(out_dir,'clustree_geneplots/integrated_assay')))
- # {dir.create(paste0(out_dir,file.path("clustree_geneplots","integrated_assay")),recursive=TRUE)}
-# out_path<-paste0(out_dir,'clustree_geneplots/integrated_assay/')
- 
- #DefaultAssay(s.obj)<-'integrated'
- 
-# for(i in 1:length(validated_genes))
-# {
-#  clustree(s.obj, prefix=prefix ,node_colour = validated_genes[i], node_colour_aggr = fun_use)
-#  ggsave(paste0(run_tag,'_',validated_genes[i],".png"),path=out_path, width=8.5, height=11,units="in")
-# }
-#}else
-#  {cat("None of the requested gene(s) found!",'\n')}
-#}
 
 
 # Function to generate Silhouette plots #
