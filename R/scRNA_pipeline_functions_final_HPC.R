@@ -22,7 +22,7 @@ library(stringr)
 # 'Omics' related packages
 library(Seurat)
 library(cluster)
-#library(factoextra)
+library(factoextra)
 library(clustree)
 library(ggraph)
 
@@ -41,6 +41,7 @@ create_seurat_obj_10X<-function(sample_id,input_dir,data_dir=FALSE,verbose=FALSE
 {
  # Read data from cellranger output 
  path<-paste0(input_dir,sample_id,'/outs/')
+ print(path)
  if(data_dir)
  { if(verbose)
      {
@@ -559,7 +560,7 @@ get_var_genes_plot<-function(s.obj,verbose=FALSE)
 customized_umap<-function(s.obj,umap_cols=NULL,label=FALSE,title=NULL, group=NULL,split=NULL,dot=0.3,save=FALSE,out='./',run_tag,h=8,w=8)
 {
     ns<-s.obj@meta.data$sample %>% unique %>% length()
-    nc<-ncol(obj)
+    nc<-ncol(s.obj)
 
     if(is.null(title)==TRUE)
     {
@@ -730,13 +731,14 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-iterative_clus_by_res<-function(s.obj,res,dims_use,verbose=FALSE)
-{ if(verbose)
-   {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
+iterative_clus_by_res<-function(s.obj,res,dims_use)
+{ 
+print(paste0("dims_use:",dims_use))
+cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')
   #res<-c(0.2,0.4,0.6,0.8,1,1.2)
   s.obj<-ScaleData(s.obj)
-  s.obj<-RunPCA(s.obj, npcs=50)
-  s.obj<-FindNeighbors(s.obj,dims=dims_use)
+  s.obj<-RunPCA(s.obj, npcs=dims_use)
+  s.obj<-FindNeighbors(s.obj,dims=1:dims_use)
   for(i in 1:length(res))
   {
     s.obj<-FindClusters(s.obj, res=res[i])
