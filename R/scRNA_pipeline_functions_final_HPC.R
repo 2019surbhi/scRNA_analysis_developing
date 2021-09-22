@@ -40,7 +40,6 @@ create_seurat_obj_10X<-function(sample_id,input_dir,data_dir=FALSE,verbose=FALSE
 {
  # Read data from cellranger output 
  path<-paste0(input_dir,sample_id,'/outs/')
- print(path)
  if(data_dir)
  { if(verbose)
      {
@@ -378,21 +377,23 @@ plot_threshold_effects<-function(plot.data,thresholds,title.root)
 
 # Funtion to pre-process data #
 
-pre_process<-function(s.obj,hvg=3000, verbose=FALSE)
+pre_process<-function(s.obj,hvg=2000, verbose=FALSE)
 {
  
-#SCTransform normalize data
+#Log normalize data
 if(verbose)
    {
     cat(paste0('Normalizing data for ',s.obj@project.name),sep='\n')
    }
- s.obj<-SCTransform(s.obj, assay="Spatial", vars.to.regress = "percent.mt", return.only.var.genes = FALSE, variable.features.n=hvg)
+ s.obj<-NormalizeData(s.obj,normalization.method = 'LogNormalize',scale.factor = 10^4, verbose = verbose)
 
 #Select genes that excibit the most variance across cells
  
 if(verbose){
       cat(paste0(' Getting Variable Genes for ',s.obj@project.name),sep='\n')
    }
+
+s.obj<-FindVariableFeatures(s.obj,selection.method = 'vst', nfeatures=hvg, verbose = verbose)
 
 # Scaling all genes
 #if(verbose)
@@ -544,7 +545,7 @@ get_var_genes_plot<-function(s.obj,verbose=FALSE)
 customized_umap<-function(s.obj,umap_cols=NULL,label=FALSE,title=NULL, group=NULL,split=NULL,dot=0.3,save=FALSE,out='./',run_tag,h=8,w=8,reduction='umap')
 {
     ns<-s.obj@meta.data$sample %>% unique %>% length()
-    nc<-ncol(s.obj)
+    nc<-ncol(obj)
 
     if(is.null(title)==TRUE)
     {
@@ -715,22 +716,11 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-<<<<<<< HEAD
 iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE,features=NULL,assay='integrated')
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   DefaultAssay(s.obj)<-assay
   s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction)
-=======
-iterative_clus_by_res<-function(s.obj,res,dims_use)
-{ 
-print(paste0("dims_use:",dims_use))
-cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')
-  #res<-c(0.2,0.4,0.6,0.8,1,1.2)
-  s.obj<-ScaleData(s.obj)
-  s.obj<-RunPCA(s.obj, npcs=dims_use)
-  s.obj<-FindNeighbors(s.obj,dims=1:dims_use)
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
   for(i in 1:length(res))
   {
     s.obj<-FindClusters(s.obj, res=res[i])

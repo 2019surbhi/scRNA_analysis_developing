@@ -2,11 +2,7 @@
 
 # This is a script that facilitates running the Ting Lab scRNA seq pipeline on HPC for processing data generated on 10XGenomics platform 
 
-<<<<<<< HEAD
 source('./scRNA_pipeline_functions_final_HPC.R')
-=======
-source('scRNA_pipeline_functions_final_HPC.R')
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 
 library(argparser)
 
@@ -177,14 +173,6 @@ parser<-add_argument(
   short = '-v',
   flag=TRUE,
   help="Set flag for printing output messages during the run")
-
-parser<-add_argument(
-  parser,
-  arg="--qc_only",
-  short="-x",
-  flag=TRUE,
-  help="Only generate qc plots. Only successful if --qc-plots is also used."
-)
 
 argv <- parse_args(parser)
 
@@ -424,7 +412,6 @@ write.csv(tab,paste0(argv$out_dir,argv$run_tag,"cell_qc_table.csv"))
 rm(tab_list)
 rm(tab)
 
-if(argv$qc_only){quit(save="no")}
 # Filter low quality cells
 obj_tab_list<-lapply(X=(1:length(obj.list)), FUN=function(x){filter_cells(obj.list[[x]],mt.thres=argv$thresholds[1], genecnt.thres=argv$thresholds[2:3], libsize.thres=argv$thresholds[4:5], verbose=argv$verbose)})
 
@@ -579,18 +566,14 @@ if(clustree)
 {
 # Generating clustree and silhouette plots using batch integrated object
 res<-seq(0.1,1.2,by=0.1)
-pc<- c(10,15,20,25,30,35,40,45,50,55,60,65,70)
+pc<-c(15,20,25,30,35,40,50)
 
 for(i in 1:length(pc))
 {
 #dims<-seq(1,pc[i],by=1)
 obj_clustree<-NULL
 clus_run=paste0(argv$run_tag,'PC',pc[i])
-<<<<<<< HEAD
 obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=argv$verbose)
-=======
-obj_clustree<-iterative_clus_by_res(obj.integrated,res=res,dims_use=pc[i])
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=argv$out_dir,run_tag=clus_run,verbose=argv$verbose)
 
 print_geneplots_on_clustree(obj_clustree,genes=argv$gene_list,prefix="integrated_snn_res.",assay='integrated' , fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
@@ -638,7 +621,7 @@ for(i in 1:length(pc))
 for(j in 1:length(res))
    {
    sil_run<-paste0(argv$run_tag,'PC',pc[i],'_res',res[j])
-   obj_sil<-iterative_clus_by_res(obj.integrated,res=res[j],dims_use=pc[i])
+   obj_sil<-iterative_clus_by_res(obj.integrated,res=res[j],dims_use=1:pc[i],verbose=argv$verbose)
     get_silhouette_plot(obj_sil,reduction='pca',dims=1:pc[i],out_dir=argv$out_dir,run_tag=sil_run,verbose=argv$verbose)
    }
 }
@@ -656,36 +639,6 @@ rm(obj_sil)
 
 DefaultAssay(obj.integrated)<-'integrated'
 
-<<<<<<< HEAD
-=======
-#Run PCA
-  #obj.integrated<-FindVariableFeatures(obj.integrated)
-  all.features<-rownames(obj.integrated)
-  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=argv$verbose)
-  
-  obj.integrated<-RunPCA(obj.integrated, npcs=max(argv$pca_dimensions),ndims.print = 1:15, verbose=argv$verbose)
-  obj.integrated[['sample']]<-obj.integrated[['orig.ident']]
-
-# PCA Elbow Plot
-options(bitmapType='cairo')
-png(file=paste0(argv$out_dir,argv$run_tag,"PCA_elbow_plots.png"),width = 11,height = 8.5, units='in', res=300)
-  ElbowPlot(obj.integrated,ndims=max(argv$pca_dimensions))+labs(paste0(argv$run_tag,'ElbowPlot'))
-  dev.off()
-
-saveRDS(obj.integrated,file=paste0(argv$out_dir,argv$run_tag,"integrated_afterPCA.rds"))
-# PCA gene plot - from Jean Clemenceau
-   pca_split<-split(argv$pca_dimensions, ceiling(seq_along(argv$pca_dimensions)/6))
-
-  # Visualize which genes are associated with reduced dimensions
-  pca_gene_plots<-lapply(pca_split,function(x){ VizDimLoadings(obj.integrated,dims=x,ncol=3,reduction='pca') })
-  pdf(file=paste0(argv$out_dir,argv$run_tag,"PC_gene_plots.pdf"),paper='a4',height = 11,width = 8.5)
- print(pca_gene_plots)
- dev.off()
-
-rm(pca_split)
-rm(pca_gene_plots)
-
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 #Find Clusters
   obj.integrated<-FindNeighbors(obj.integrated, dims=argv$pca_dimensions)
   obj.integrated<-FindClusters(obj.integrated, res=as.numeric(argv$cluster_resolution))
