@@ -379,23 +379,21 @@ plot_threshold_effects<-function(plot.data,thresholds,title.root)
 
 # Funtion to pre-process data #
 
-pre_process<-function(s.obj,hvg=2000, verbose=FALSE)
+pre_process<-function(s.obj,hvg=3000, verbose=FALSE)
 {
  
-#Log normalize data
+#SCTransform normalize data
 if(verbose)
    {
     cat(paste0('Normalizing data for ',s.obj@project.name),sep='\n')
    }
- s.obj<-NormalizeData(s.obj,normalization.method = 'LogNormalize',scale.factor = 10^4, verbose = verbose)
+ s.obj<-SCTransform(s.obj, assay="Spatial", vars.to.regress = "percent.mt", return.only.var.genes = FALSE, variable.features.n=hvg)
 
 #Select genes that excibit the most variance across cells
  
 if(verbose){
       cat(paste0(' Getting Variable Genes for ',s.obj@project.name),sep='\n')
    }
-
-s.obj<-FindVariableFeatures(s.obj,selection.method = 'vst', nfeatures=hvg, verbose = verbose)
 
 # Scaling all genes
 #if(verbose)
