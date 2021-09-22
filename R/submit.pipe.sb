@@ -1,9 +1,0 @@
-#!/bin/bash
-
-#SBATCH -c 48
-#SBATCH --mem=185G
-#SBATCH --job-name="all-mouse_scrna"
-#SBATCH --mail-type=END
-#SBATCH --mail-user=bradlem4@ccf.org
-module load R
-Rscript scRNA_pipeline_run_final_HPC.R -i ~/beegfs/mouse-bladder/scrna/cr-results/mm10/merged/ -o ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/optimized-9-17/ -z -r 9-17-0.3res-50pc -y 2000 -t 15,200,12000,4000,1500000 -c 40 -m 175 -n Kdm6a,Kdm6b,Ezh2,Krt5,Upk3a,Pecam1,Dcn,Ptprc,Acta2 --qc_plots -d 1:50 -e 0.3

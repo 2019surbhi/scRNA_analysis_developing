@@ -1,9 +1,0 @@
-#!/bin/bash
-
-#SBATCH -c 48
-#SBATCH --mem=185G
-#SBATCH --job-name="urothelial_wclustree"
-#SBATCH --mail-type=END
-#SBATCH --mail-user=bradlem4@ccf.org
-module load R
-Rscript scRNA_pipeline_run_final_HPC.R -b ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/optimized-9-17/9-17-0.3res-50pc_clustered.rds -o ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/subsets/uro-subset-w-clustree/ -z -r 9-22-urothelial-clustree -u clustree -y 2000 -c 40 -m 175 -n Krt20,Upk1a,Upk1b,Upk2,Upk3a,Upk3b,Krt7,Krt8,Krt18,Krt19,Pbsn,Pate9,Piezo2,Gpm6a,Top2a,Mki67,Shh,Foxa2,Trp53,Kdm6a,Dcn -l 0,1,2,4,5,6,7,8,13,14,16 
