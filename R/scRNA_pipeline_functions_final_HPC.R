@@ -386,7 +386,7 @@ if(verbose)
    {
     cat(paste0('Normalizing data for ',s.obj@project.name),sep='\n')
    }
- s.obj<-SCTransform(s.obj, assay="Spatial", vars.to.regress = "percent.mt", return.only.var.genes = FALSE, variable.features.n=hvg)
+ s.obj<-SCTransform(s.obj, vars.to.regress = "perc.mt", return.only.var.genes = FALSE, variable.features.n=hvg)
 
 #Select genes that excibit the most variance across cells
  
@@ -428,13 +428,13 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
     cat("Performing CCA-MNN Pipeline",sep='\n')
   }
 #Determine min number of neighbors
- mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
-
- sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,k.filter=mink,reduction=reduction)
+ #mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
+ #print(paste0("Minimum k-filter: ",mink))
+ sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,k.filter=mink,reduction=reduction,normalization.method="SCT")
  if(genes=='')
 {if(verbose)
     {cat("Integration the sample.anchors only",sep='\n')}
- s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30)
+ s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,normalization.method="SCT")
 }else if(genes=='all')
    {
     all.genes <- lapply(s.obj.list, row.names) %>% Reduce(intersect, .)
@@ -443,7 +443,7 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
        {cat("CCA_MNN batch correction - integrating all genes", sep='\n')
         cat("Total genes being used for integration = ", length(all.genes),'\n')
        }
-    s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=all.genes)   
+    s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=all.genes,normalization.method="SCT")   
    }else{
       if(verbose)
        {cat("CCA_MNN batch correction - integrating top ", genes, " variable genes", sep='\n')}
@@ -452,7 +452,7 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
       
       int.genes<- m.obj@assays$RNA@var.features
       #int.genes<-union(sample.anchors,m.obj@assays$RNA@var.features)
-      s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=int.genes)
+      s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=int.genes,normalization.method="SCT")
     rm(m.obj)
     }
 
@@ -715,22 +715,17 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-<<<<<<< HEAD
 iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE,features=NULL,assay='integrated')
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   DefaultAssay(s.obj)<-assay
-  s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction)
-=======
-iterative_clus_by_res<-function(s.obj,res,dims_use)
-{ 
+  s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction) 
 print(paste0("dims_use:",dims_use))
 cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')
   #res<-c(0.2,0.4,0.6,0.8,1,1.2)
   s.obj<-ScaleData(s.obj)
   s.obj<-RunPCA(s.obj, npcs=dims_use)
   s.obj<-FindNeighbors(s.obj,dims=1:dims_use)
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
   for(i in 1:length(res))
   {
     s.obj<-FindClusters(s.obj, res=res[i])

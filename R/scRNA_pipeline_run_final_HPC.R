@@ -2,11 +2,7 @@
 
 # This is a script that facilitates running the Ting Lab scRNA seq pipeline on HPC for processing data generated on 10XGenomics platform 
 
-<<<<<<< HEAD
 source('./scRNA_pipeline_functions_final_HPC.R')
-=======
-source('scRNA_pipeline_functions_final_HPC.R')
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 
 library(argparser)
 
@@ -177,14 +173,6 @@ parser<-add_argument(
   short = '-v',
   flag=TRUE,
   help="Set flag for printing output messages during the run")
-
-parser<-add_argument(
-  parser,
-  arg="--qc_only",
-  short="-x",
-  flag=TRUE,
-  help="Only generate qc plots. Only successful if --qc-plots is also used."
-)
 
 argv <- parse_args(parser)
 
@@ -586,11 +574,7 @@ for(i in 1:length(pc))
 #dims<-seq(1,pc[i],by=1)
 obj_clustree<-NULL
 clus_run=paste0(argv$run_tag,'PC',pc[i])
-<<<<<<< HEAD
-obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=argv$verbose)
-=======
 obj_clustree<-iterative_clus_by_res(obj.integrated,res=res,dims_use=pc[i])
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=argv$out_dir,run_tag=clus_run,verbose=argv$verbose)
 
 print_geneplots_on_clustree(obj_clustree,genes=argv$gene_list,prefix="integrated_snn_res.",assay='integrated' , fun_use='median',out_dir= argv$out_dir, run_tag=clus_run, verbose=FALSE)
@@ -656,8 +640,6 @@ rm(obj_sil)
 
 DefaultAssay(obj.integrated)<-'integrated'
 
-<<<<<<< HEAD
-=======
 #Run PCA
   #obj.integrated<-FindVariableFeatures(obj.integrated)
   all.features<-rownames(obj.integrated)
@@ -685,7 +667,6 @@ saveRDS(obj.integrated,file=paste0(argv$out_dir,argv$run_tag,"integrated_afterPC
 rm(pca_split)
 rm(pca_gene_plots)
 
->>>>>>> 13b5641ca1de9a278871cf847e3d958a60933323
 #Find Clusters
   obj.integrated<-FindNeighbors(obj.integrated, dims=argv$pca_dimensions)
   obj.integrated<-FindClusters(obj.integrated, res=as.numeric(argv$cluster_resolution))
