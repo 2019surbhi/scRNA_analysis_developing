@@ -430,15 +430,17 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
 #Determine min number of neighbors
  #mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
  #print(paste0("Minimum k-filter: ",mink))
- sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,k.filter=mink,reduction=reduction,normalization.method="SCT")
  if(genes=='')
 {if(verbose)
+ features <- SelectIntegrationFeatures(s.obj.list, nfeatures=3000)
+ PrepSCTIntegration(s.obj.list,anchor.features=features)
+ sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,reduction=reduction,normalization.method="SCT")
     {cat("Integration the sample.anchors only",sep='\n')}
  s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,normalization.method="SCT")
 }else if(genes=='all')
    {
     all.genes <- lapply(s.obj.list, row.names) %>% Reduce(intersect, .)
-    
+    s.obj.list<-PrepSCTIntegration(s.obj.list,anchor.features=all.genes)
      if(verbose)
        {cat("CCA_MNN batch correction - integrating all genes", sep='\n')
         cat("Total genes being used for integration = ", length(all.genes),'\n')
