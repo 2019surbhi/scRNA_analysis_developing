@@ -31,6 +31,9 @@ library(lattice)
 library(gridExtra)
 library(grid)
 
+# Packages for doublet detection
+library(DoubletFinder)
+
 
 ### FUNCTIONS ###
 
@@ -399,14 +402,40 @@ if(verbose){
 #{cat('Scaling all features ',sep='\n')}
 #all.genes<-row.names(s.obj)
 #s.obj<-ScaleData(s.obj,features=all.genes)
-
+DefaultAssay(s.obj) <- "SCT"
 return(s.obj)
 
 }
 
+# Performs Doublet analysis and adds doublet predictions to meta data
+doublet_detection<- function(s.obj, pct.doublet=0.05, low.conf.doublets=FALSE, verbose=FALSE){
+	#Create an intermediary Seurat object so we don't have to save the PCA and UMAP to the main object
+	if(verbose){
+		cat(paste0('Finding doublets for ', s.obj@project.name), sep='\n')
+	}
+	x <- s.obj
+	x <- x %>% RunPCA() %>% RunUMAP(dims=1:20)
+	sweep.res.list <- paramSweep_v3(x, PCs=1:20, sct = TRUE)
+	sweep.stats <- summarizeSweep(sweep.res.list,GT=FALSE)
+	bcmvn <- find.pK(sweep.stats)
+	pK.max <- as.numeric(as.character(bcmvn[which.max(bcmvn$BCmetric),"pK"]))
+	pN.max <- as.numeric(as.character(sweep.stats[which(bcmvn$pK==pK.max),"pN"]))
+	#plot(x = as.numeric(as.character(bcmvn$pK)), y = as.numeric(bcmvn$BCmetric), pch = 16, col = "#41b6c4", cex = 0.75, xlab="pK", ylab="BCmetric") 
+	#homotypic.prop <- modelHomotypic(x$seurat_clusters)
+	nExp_poi <- round(0.05*nrow(x@meta.data))
+	x <- doubletFinder_v3(x, PCs = 1:20, pN = pN.max, pK = pK.max, nExp = nExp_poi, reuse.pANN = FALSE, sct = TRUE)
+	s.obj@meta.data$doubletPrediction<-x@meta.data[,paste0("DF.classifications_", pN.max, "_", pK.max, "_", nExp_poi)]
+	if(low.conf.doublets){
+		homotypic.prop <- modelHomotypic(x$seurat_clusters)
+		nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+		x <- doubletFinder_v3(x, PCs = 1:20, pN = pN.max, pK = pK.max, nExp = nExp_poi.adj, reuse.pANN = paste0("DF.classifications_", pN.max, "_", pK.max, "_", nExp_poi), sct = TRUE)
+		s.obj@meta.data$doubletPrediction_lowConf<-x@meta.data[,paste0("DF.classifications_", pN.max, "_", pK.max, "_", nExp_poi.adj)]
+	}
+	return(s.obj)
+}
+
 # Function to plot variable genes in samples # - from Jean Clemenceau
-get_var_genes<-function(s.obj,out_dir='./',verbose=FALSE)
-{
+get_var_genes<-function(s.obj,out_dir='./',verbose=FALSE){
  
   f.name<-paste0(out_dir,s.obj@project.name,'-variableGenes.tsv')
   
@@ -422,48 +451,53 @@ get_var_genes<-function(s.obj,out_dir='./',verbose=FALSE)
 
 # Funtions to integrate multiple samples with batch correction #
 
-cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',verbose=FALSE)
-{
-  if(verbose){
-    cat("Performing CCA-MNN Pipeline",sep='\n')
-  }
-#Determine min number of neighbors
- #mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
- #print(paste0("Minimum k-filter: ",mink))
- if(genes=='')
-{if(verbose)
- features <- SelectIntegrationFeatures(s.obj.list, nfeatures=3000)
- PrepSCTIntegration(s.obj.list,anchor.features=features)
- sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,reduction=reduction,normalization.method="SCT")
-    {cat("Integration the sample.anchors only",sep='\n')}
- s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,normalization.method="SCT")
-}else if(genes=='all')
-   {
-    all.genes <- lapply(s.obj.list, row.names) %>% Reduce(intersect, .)
-    s.obj.list<-PrepSCTIntegration(s.obj.list,anchor.features=all.genes)
-     if(verbose)
-       {cat("CCA_MNN batch correction - integrating all genes", sep='\n')
-        cat("Total genes being used for integration = ", length(all.genes),'\n')
-       }
-    s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=all.genes,normalization.method="SCT")   
-   }else{
-      if(verbose)
-       {cat("CCA_MNN batch correction - integrating top ", genes, " variable genes", sep='\n')}
-      m.obj<-merge(s.obj.list[[1]],s.obj.list[2:length(s.obj.list)])
-      m.obj<-FindVariableFeatures(m.obj, nfeatures=genes)
+cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',verbose=FALSE){
+	if(verbose){
+		cat(paste0("Performing batch correction method: ", reduction),sep='\n')
+  	}
+	#Determine min number of neighbors
+ 	#mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
+ 	#print(paste0("Minimum k-filter: ",mink))
+ 	if(genes==''){
+ 		features <- SelectIntegrationFeatures(s.obj.list, nfeatures=3000)
+ 		s.obj.list<-PrepSCTIntegration(s.obj.list,anchor.features=features)
+		if(reduction=="rpca"){
+			s.obj.list <- lapply(s.obj.list, FUN=function(x) RunPCA(x, features=features, verbose=FALSE))
+		}
+ 		sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,reduction=reduction,normalization.method="SCT",anchor.features=features)
+ 		s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,normalization.method="SCT")
+	}else if(genes=='all'){
+    		all.genes <- lapply(s.obj.list, row.names) %>% Reduce(intersect, .)
+    		features <- SelectIntegrationFeatures(s.obj.list, nfeatures=3000)
+    		s.obj.list<-PrepSCTIntegration(s.obj.list,anchor.features=features)
+		if(reduction=="rpca"){
+                        s.obj.list <- lapply(s.obj.list, FUN=function(x) RunPCA(x, features=features, verbose=FALSE))
+                }
+     		if(verbose){
+			cat(paste0("Batch correction - integrating all genes with ",reduction), sep='\n')
+        		cat("Total genes being used for integration = ", length(all.genes),'\n')
+       		}
+    		sample.anchors <- FindIntegrationAnchors(s.obj.list,normalization.method="SCT", anchor.features=features, reduction=reduction)
+    		s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=all.genes,normalization.method="SCT")   
+   	}else{
+      		if(verbose){
+			cat(paste0("Batch correction - integrating top ", genes, " variable genes with ", reduction), sep='\n')
+		}
+      		m.obj<-merge(s.obj.list[[1]],s.obj.list[2:length(s.obj.list)])
+     		m.obj<-FindVariableFeatures(m.obj, nfeatures=genes)
       
-      int.genes<- m.obj@assays$RNA@var.features
-      #int.genes<-union(sample.anchors,m.obj@assays$RNA@var.features)
-      s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=int.genes,normalization.method="SCT")
-    rm(m.obj)
-    }
+      		int.genes<- m.obj@assays$RNA@var.features
+      		#int.genes<-union(sample.anchors,m.obj@assays$RNA@var.features)
+      		s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=int.genes,normalization.method="SCT")
+    		rm(m.obj)
+	}	
 
-#saveRDS(sample.anchors,"sample.anchors.rds")
-rm(sample.anchors)
+	#saveRDS(sample.anchors,"sample.anchors.rds")
+	rm(sample.anchors)
 
-s.obj.integrated@project.name<-merged.title
-
- return(s.obj.integrated)
+	s.obj.integrated@project.name<-merged.title
+	print("Finished batch correction")
+	return(s.obj.integrated)
 }
 
 # Function to add metadata to Seurat object # - adapt function as per metafile
@@ -596,7 +630,6 @@ differential_gene_exp<-function(s.obj,clusters,out_dir='./',run_file_name="",ver
 
 {cat("Finding Differentially expressed cluster markers", '\n')}
   
- #DefaultAssay(s.obj)<-"RNA"
  markers<-list()
  
 #Create directory to export markers
@@ -717,20 +750,18 @@ png(paste0(out_dir,run_file_name,"dendrogram.png"),width=11,height = 8.5, units=
 }
 
 # Functions to implement clustree workflow # 
-iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='PCA', verbose=FALSE,features=NULL,assay='integrated')
+iterative_clus_by_res<-function(s.obj,res,dims_use,reduction='pca', verbose=FALSE,features=NULL,assay='integrated')
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   DefaultAssay(s.obj)<-assay
-  s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction) 
-print(paste0("dims_use:",dims_use))
-cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')
+  #s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction) 
+  print(paste0("dims_use:",dims_use))
+  cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')
   #res<-c(0.2,0.4,0.6,0.8,1,1.2)
-  s.obj<-ScaleData(s.obj)
-  s.obj<-RunPCA(s.obj, npcs=dims_use)
   s.obj<-FindNeighbors(s.obj,dims=1:dims_use)
   for(i in 1:length(res))
   {
-    s.obj<-FindClusters(s.obj, res=res[i])
+    s.obj<-FindClusters(s.obj,graph.name=paste0(assay, '_snn'), res=res[i])
   }
   return(s.obj)
 }
@@ -772,7 +803,7 @@ print_geneplots_on_clustree<-function(s.obj,genes, prefix,assay='integrated', fu
  out_path<-paste0(out_dir,'clustree_geneplots/',assay,'/')
  
  DefaultAssay(s.obj)<-assay
- 
+  
  for(i in 1:length(validated_genes))
  {
   clustree(s.obj, prefix=prefix,node_colour = validated_genes[i], node_colour_aggr = fun_use)
