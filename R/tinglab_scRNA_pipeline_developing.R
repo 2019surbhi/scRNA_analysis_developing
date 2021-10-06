@@ -818,7 +818,7 @@ write.csv (tab2,paste0(args$output_dir,args$file_prefix,"cells_by_cluster_by_sam
 
 ##(9b) Differential gene expression ##
 
-clusters_num<-levels(obj.integrated$seurat_clusters)
+clusters_num<-levels(obj.integrated)
 DefaultAssay(obj.integrated)<-"RNA"
 marker.list<-differential_gene_exp(obj.integrated, clusters=clusters_num, out_dir=args$output_dir,file_prefix=args$file_prefix,verbose=args$verbose)
 

@@ -541,7 +541,7 @@ differential_gene_exp<-function(s.obj,clusters,out_dir='./',file_prefix="",verbo
 
 {cat("Finding Differentially expressed cluster markers", '\n')}
   
- #DefaultAssay(s.obj)<-"RNA"
+ DefaultAssay(s.obj)<-"RNA"
  markers<-list()
  
 #Create directory to export markers
@@ -550,8 +550,9 @@ differential_gene_exp<-function(s.obj,clusters,out_dir='./',file_prefix="",verbo
     out_path<-paste0(out_dir,'diff_genes/')
 
 # Find markers and export to tsv file
+seurat_clusters<-grep('snn',colnames(s.obj@meta.data))
   for(i in 1:length(clusters))
-  {if( sum(s.obj@meta.data$seurat_clusters==clusters[i])<4)
+  {if( sum(s.obj@meta.data[[seurat_clusters]]==clusters[i])<4)
     {
      cat('Cluster',clusters[i],'has too few cells','\n')
     }else{
@@ -733,7 +734,8 @@ get_silhouette_plot<-function(s.obj,reduction='pca',dims=1:50,out_dir='./',file_
  if(!dir.exists(paste0(out_dir,'Silhouette/')))
   {dir.create(paste0(out_dir,'Silhouette/'))}
  out_path<-paste0(out_dir,'Silhouette/')
-  clusters<-s.obj$seurat_clusters
+  clusters<-s.obj@meta.data[,grep('snn',colnames(s.obj@meta.data))]
+  
   dist.matrix<-dist(x=Embeddings(object=s.obj[[reduction]])[,dims])
   sil<-silhouette(x=as.numeric(as.factor(clusters)),dist=dist.matrix)
   
