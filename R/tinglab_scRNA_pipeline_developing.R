@@ -108,6 +108,14 @@ parser<-add_argument(
 
 parser<-add_argument(
   parser,
+  arg='--batch_correction',
+  short='-C',
+  default='cca-mnn',
+  type='character',
+  help="Enter the batch correction method to be used. Options are: harmony and cca-mnn. Default is cca-mnn")
+
+parser<-add_argument(
+  parser,
   arg='--batch_genes',
   short='-g',
   default='',
@@ -150,7 +158,7 @@ parser<-add_argument(
  short='-a',
  type="character",
  default='both',
- help="Specify choices for saving Seurat object. Choices: 'none' , 'integrated' (to save object prior to clustering), 'final' (to save object post clustering), or 'both' (default) ")
+ help="Specify choices for saving Seurat object. Choices: 'none' , 'integrated' (to save batch corrected object prior to clustering), 'clustered' (to save object post clustering), or 'both' (default) ")
 
 parser<-add_argument(
   parser,
@@ -520,21 +528,40 @@ if(args$qc_only)
 
 ###(3) Data pre-processing ###
 
-if(args$verbose)
-{cat('Following ', length(obj.list), ' samples will be integrated: \n')
- cat(names(obj.list))
-}
+##(a) Log normalize ##
 
-obj.list<-lapply(obj.list[1:length(obj.list)],pre_process, hvg=args$hvg, verbose=args$verbose)
+obj.list<-lapply(obj.list[1:length(obj.list)],NormalizeData,normalization.method = 'LogNormalize',scale.factor = 10^4, verbose =args$verbose)
+
+if(args$batch_correction=='cca-mnn')
+{
+    assay<-'integrated'
+    reduction<-'pca'
+    
+}else if(args$batch_correction=='harmony')
+    {
+     assay<-'RNA'
+     reduction<-'harmony'
+     obj.list<-merge(x=obj.list[[1]],y=obj.list[2:length(obj.list)])
+     DefaultAssay(obj.list)<-'RNA'
+    }else
+        {
+            cat('You did not enter correct batch correction method, setting it to cca-mnn')
+            args$batch_correction<-'cca-mnn'
+        }
+
+##(a) Find variable genes ##
+
+obj.list<-lapply(X=1:length(obj.list),function(x){FindVariableFeatures(obj.list[[x]],selection.method = 'vst', nfeatures=args$hvg, verbose = args$verbose)})
 
 #Get variable genes table and plots for each sample
 # Prepare output file
 if(!dir.exists(paste0(args$output_dir,'variable_genes/')))
   {dir.create( paste0(args$output_dir,'variable_genes/'))}
 out_path<-paste0(args$output_dir,'variable_genes/')
-lapply(obj.list[1:length(obj.list)],get_var_genes,out_dir=out_path,verbose=args$vebose)
+lapply(X=1:length(obj.list),function(x){get_var_genes(obj.list[[x]],out_dir=out_path,verbose=args$vebose)})
 
- varplots<-lapply(obj.list[1:length(obj.list)],get_var_genes_plot,verbose=args$verbose)
+ varplots<-lapply(X=1:length(obj.list),get_var_genes_plot(obj.list[[x]],verbose=args$verbose)})
+
  pdf(file=paste0(out_path,args$file_prefix,'VariableGenePlots.pdf'),paper='a4')
  print(varplots)
  dev.off()
@@ -550,7 +577,25 @@ if(length(obj.list)>1)
  {
  # Integrate data with batch correction
  
-obj.integrated<-cca_batch_correction(obj.list,project.name=args$file_prefix, anchors=args$hvg, int.genes=args$batch_genes, verbose=args$verbose)
+ if(args$batch_correction=='cca-mnn')
+ {
+  obj.integrated<-cca_batch_correction(obj.list,project.name=args$file_prefix, anchors=args$hvg, int.genes=args$batch_genes, verbose=args$verbose)
+
+}else if(args$batch_correction=='harmony')
+ {
+  # Scaling
+  all.features<-rownames(obj.list)
+  obj.list<-ScaleData(obj.list,features=all.features, verbose=verbose,assay = 'RNA')
+  
+   # PCA
+   obj.list<-RunPCA(obj.list, npcs=50, verbose=verbose,assay = 'RNA')
+   
+   #Run Harmony
+   obj.integrated<-RunHarmony(obj.list,
+                  group.by.vars = "orig.ident",
+                  plot_convergence = FALSE,
+                  assay.use = 'RNA')
+ }
 
 }else # This allows skipping batch correction in case user wants to run the rest of the pipeline on an already batch corrected object (most likely batch corrected by another method)
  {
@@ -588,7 +633,10 @@ if(clustree)
  obj.integrated_RNA<-obj.integrated
 }
 
-##(6a) Run PCA ##
+##(6a) Run PCA ## (skip if ran harmony)
+
+if(args$batch_correction!='harmony')
+{
 DefaultAssay(obj.integrated)<-'integrated'
 
 # Scale data
@@ -600,6 +648,7 @@ if(args$verbose)
 # Run PCA
 obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
 
+}
 
 ##(6b) PCA Plots ##
 
@@ -607,11 +656,11 @@ obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$
 
 options(bitmapType='cairo')
 png(file=paste0(args$output_dir,args$file_prefix,"PCA_elbow_plots.png"),width = 11,height = 8.5, units='in', res=300)
-  ElbowPlot(obj.integrated,ndims=50)+ggtitle(paste0(args$file_prefix,'ElbowPlot'))
+  ElbowPlot(obj.integrated,ndims=50,reduction=reduction)+ggtitle(paste0(args$file_prefix,'ElbowPlot'))
   dev.off()
 
 # PCA gene plot (print 4 PCs per page)
-pc_genes_plot_list<-lapply(args$pca_dimensions,function(x){ VizDimLoadings(obj.integrated,dims=x,ncol=1,reduction='pca') })
+pc_genes_plot_list<-lapply(args$pca_dimensions,function(x){ VizDimLoadings(obj.integrated,dims=x,ncol=1,reduction=reduction) })
 
 pca_plots<-marrangeGrob(pc_genes_plot_list, nrow=2, ncol=2)
 ggsave(paste0(args$output_dir,args$file_prefix,"PC_gene_plots.pdf"), width=8.5, height=11, units = "in", pca_plots)
@@ -634,13 +683,16 @@ for(i in 1:length(pc))
 #dims<-seq(1,pc[i],by=1)
 obj_clustree<-NULL
 clus_run=paste0(args$file_prefix,'PC',pc[i])
-obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=args$verbose)
-print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=args$output_dir,file_prefix=clus_run,verbose=args$verbose)
+obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],reduction=reduction,assay=assay,verbose=args$verbose)
+
+col<-grep('snn',colnames(obj_clustree@meta.data))
+prefix<-gsub('[0-9].+','',colnames(obj_clustree@meta.data)[col[1]]
+
+print_clustree_png(obj_clustree,prefix=prefix, out_dir=args$output_dir,file_prefix=clus_run,verbose=args$verbose)
 
 # Generate clustree geneplots on integrated assay
-print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix="integrated_snn_res.",assay='integrated' , fun_use='median',out_dir= args$output_dir, file_prefix=clus_run, verbose=FALSE)
+print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix=prefix,assay=assay , fun_use='median',out_dir= args$output_dir, file_prefix=clus_run, verbose=FALSE)
 }
-
 
 # Generate clustree geneplots on RNA assay using a copy of batch corrected object
 DefaultAssay(obj.integrated_RNA)<-'RNA'
@@ -683,15 +735,15 @@ if(args$verbose)
 res<-seq(0.1,1.2,by=0.1)
 pc<-c(15,20,25,30,35,40,50)
 
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-assay
 
 for(i in 1:length(pc))
 {
 for(j in 1:length(res))
    {
    sil_run<-paste0(args$file_prefix,'PC',pc[i],'_res',res[j])
-   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='pca',assay='integrated')
-    get_silhouette_plot(s.obj=obj_sil,reduction='pca',dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
+   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction=reduction,assay=assay)
+    get_silhouette_plot(s.obj=obj_sil,reduction=reduction,dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
    }
 }
 
@@ -706,19 +758,19 @@ rm(obj_sil)
 ###(8) CLUSTERING ###
 
 # In the pipeline the clusters are generated by default using 50 PCs at resolution 0.5. These parameters can be modified by the user
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-assay
 
 if(args$verbose)
 {cat('Clustering \n')}
 
 #Find Clusters
-  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay='integrated')
+  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay=assay,reduction-reduction)
   obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution)
 
 #Generate UMAP
   if(args$verbose)
   {cat("Genetrating UMAP plots", sep='\n')}
-  obj.integrated<-RunUMAP(obj.integrated, reduction="pca", dims=args$pca_dimensions)
+  obj.integrated<-RunUMAP(obj.integrated, reduction=reduction,assay=assay, dims=args$pca_dimensions)
 
 #Print UMAPs
 if(!dir.exists(paste0(args$output_dir,'umaps/')))
@@ -740,7 +792,7 @@ if(args$meta_file!='')
  
 ## Save clustered seurat objects ##
 
-if((args$save=='final')||(args$save=='both'))
+if((args$save=='clustered')||(args$save=='both'))
 {
  
  if(args$verbose)
@@ -826,7 +878,7 @@ rm(out)
 
 # Generating heatmap for top 15 markers per cluster
 
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-assay
 heatmap_features<-vector()
 top_h<-15
 for(i in 1:length(features.list))
