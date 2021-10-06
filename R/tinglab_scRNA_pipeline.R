@@ -3,7 +3,7 @@
 
 # Developers: Surbhi Sona and Jean Clemenceu
 
-source('/home/sonas/beegfs/scripts/R/tinglab_scRNA_pipeline_functions.R')
+source('tinglab_scRNA_pipeline_functions.R')
 
 library(argparser)
 
@@ -346,7 +346,7 @@ if(args$object=='')
    #Load Seurat object (containing all samples)
    obj<-readRDS(args$object)
 
-   if(args$clusters=='all') ## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
+   if(length(args$clusters)==1) ## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
       {
           sub<-obj
       }else ## [if-else block 1d]: Subset Seurat object to include only specific clusters defined by user
@@ -354,26 +354,26 @@ if(args$object=='')
 		sub<-subset(obj,idents=args$clusters)
 	 	}
 
-   sub.list<-list()
-   sub.counts<-list()
+   #sub.list<-list()
+   #sub.counts<-list()
 
    #Split the subsetted object by sample
-   if(args$verbose)
-    { cat("Splitting object by sample ID",'\n')}
-   sub.list<-SplitObject(sub, split.by = "orig.ident")
-   sample.id<-names(sub.list)
+   #if(args$verbose)
+   # { cat("Splitting object by sample ID",'\n')}
+   #sub.list<-SplitObject(sub, split.by = "orig.ident")
+   #sample.id<-names(sub.list)
 
    #Extract counts data
-   sub.counts<-lapply(X=1:length(sub.list), function(x) {return(sub.list[[x]]@assays$RNA@counts)})
-
+   #sub.counts<-lapply(X=1:length(sub.list), function(x) {return(sub.list[[x]]@assays$RNA@counts)})
+   DefaultAssay(sub) <- "RNA"
    #Create Seurat object
-   obj.list<-mapply(create_seurat_obj_from_counts_data,sub.counts,sample.id,verbose=args$verbose)
-
-   rm(sub)
-   rm(sub.list)
-   rm(sub.counts)
-   rm(sample.id)
-  }
+   #obj.list<-mapply(create_seurat_obj_from_counts_data,sub.counts,sample.id,verbose=args$verbose)
+   obj.list <- sub
+   #rm(sub)
+   #rm(sub.list)
+   #rm(sub.counts)
+   #rm(sample.id)
+}
 
 ###(2) QC ###
 
@@ -525,16 +525,16 @@ if(args$verbose)
  cat(names(obj.list))
 }
 
-obj.list<-lapply(obj.list[1:length(obj.list)],pre_process, hvg=args$hvg, verbose=args$verbose)
+obj.list<-pre_process(obj.list, hvg=args$hvg, verbose=args$verbose)
 
 #Get variable genes table and plots for each sample
 # Prepare output file
 if(!dir.exists(paste0(args$output_dir,'variable_genes/')))
   {dir.create( paste0(args$output_dir,'variable_genes/'))}
 out_path<-paste0(args$output_dir,'variable_genes/')
-lapply(obj.list[1:length(obj.list)],get_var_genes,out_dir=out_path,verbose=args$vebose)
+get_var_genes(obj.list,out_dir=out_path,verbose=args$verbose)
 
- varplots<-lapply(obj.list[1:length(obj.list)],get_var_genes_plot,verbose=args$verbose)
+ varplots<-get_var_genes_plot(obj.list, verbose=args$verbose)
  pdf(file=paste0(out_path,args$file_prefix,'VariableGenePlots.pdf'),paper='a4')
  print(varplots)
  dev.off()
@@ -546,16 +546,20 @@ cat('Obj list size: ', length(obj.list), '\n')
 
 ###(4) Batch correction and integration ###
 
-if(length(obj.list)>1)
- {
+obj.integrated <- HarmonyIntegration(obj.list, project.name=args$file_prefix, nfeatures=args$hvg, verbose=args$verbose)
+
+#if(length(obj.list)>1)
+#{
  # Integrate data with batch correction
  
-obj.integrated<-cca_batch_correction(obj.list,project.name=args$file_prefix, anchors=args$hvg, int.genes=args$batch_genes, verbose=args$verbose)
+#obj.integrated<-cca_batch_correction(obj.list,project.name=args$file_prefix, anchors=args$hvg, int.genes=args$batch_genes, verbose=args$verbose)
 
-}else # This allows skipping batch correction in case user wants to run the rest of the pipeline on an already batch corrected object (most likely batch corrected by another method)
- {
-   obj.integrated=obj.list[[1]]
- }
+#}else # This allows skipping batch correction in case user wants to run the rest of the pipeline on an already batch corrected object (most likely batch corrected by another method)
+ #{
+#   obj.integrated=obj.list[[1]]
+# }
+
+
 
 ###(5) Add meta data ### (optional)
 
@@ -589,16 +593,16 @@ if(clustree)
 }
 
 ##(6a) Run PCA ##
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-'RNA'
 
 # Scale data
-if(args$verbose)
-{cat('Running PCA on integrated data')}
-  all.features<-rownames(obj.integrated)
-  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=args$verbose)
+#if(args$verbose)
+#{cat('Running PCA on integrated data')}
+#  all.features<-rownames(obj.integrated)
+#  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=args$verbose)
  
 # Run PCA
-obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
+#obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
 
 
 ##(6b) PCA Plots ##
@@ -635,35 +639,35 @@ for(i in 1:length(pc))
 obj_clustree<-NULL
 clus_run=paste0(args$file_prefix,'PC',pc[i])
 obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=args$verbose)
-print_clustree_png(obj_clustree,prefix="integrated_snn_res.",out_dir=args$output_dir,file_prefix=clus_run,verbose=args$verbose)
+print_clustree_png(obj_clustree,prefix="RNA_snn_res.",out_dir=args$output_dir,file_prefix=clus_run,verbose=args$verbose)
 
 # Generate clustree geneplots on integrated assay
-print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix="integrated_snn_res.",assay='integrated' , fun_use='median',out_dir= args$output_dir, file_prefix=clus_run, verbose=FALSE)
+print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix="RNA_snn_res.",assay='RNA' , fun_use='median',out_dir= args$output_dir, file_prefix=clus_run, verbose=FALSE)
 }
 
 
 # Generate clustree geneplots on RNA assay using a copy of batch corrected object
-DefaultAssay(obj.integrated_RNA)<-'RNA'
+#DefaultAssay(obj.integrated_RNA)<-'RNA'
 
-cat('Scaling \n')
+#cat('Scaling \n')
+#
+#all.genes<-rownames(obj.integrated_RNA)
+#obj.integrated_RNA<-ScaleData(obj.integrated_RNA,features=all.genes)
 
-all.genes<-rownames(obj.integrated_RNA)
-obj.integrated_RNA<-ScaleData(obj.integrated_RNA,features=all.genes)
+#cat('Running PCA on RNA assay \n')
 
-cat('Running PCA on RNA assay \n')
+#var_genes<-obj.integrated_RNA@assays$integrated@var.features
+#obj.integrated_RNA<-RunPCA(obj.integrated_RNA,assay='RNA',features=var_genes)
 
-var_genes<-obj.integrated_RNA@assays$integrated@var.features
-obj.integrated_RNA<-RunPCA(obj.integrated_RNA,assay='RNA',features=var_genes)
+#cat('Generating clustree geneplots on RNA assay \n')
+#for(i in 1:length(pc))
+#{
+#obj_clustree<-NULL
+#clus_run=paste0(args$file_prefix,'PC',pc[i])
+#obj_clustree<-iterative_clus_by_res(obj.integrated_RNA, reduction='harmony',res=res,dims_use=1:pc[i],verbose=args$verbose,assay='RNA')
 
-cat('Generating clustree geneplots on RNA assay \n')
-for(i in 1:length(pc))
-{
-obj_clustree<-NULL
-clus_run=paste0(args$file_prefix,'PC',pc[i])
-obj_clustree<-iterative_clus_by_res(obj.integrated_RNA, res=res,dims_use=1:pc[i],verbose=args$verbose,assay='RNA')
-
-print_geneplots_on_clustree(obj_clustree,genes=args$gene_list, fun_use='median',assay='RNA',prefix='RNA_snn_res.', out_dir=args$output_dir,file_prefix=clus_run, verbose=FALSE)
-}
+#print_geneplots_on_clustree(obj_clustree,genes=args$gene_list, fun_use='median',assay='RNA',prefix='RNA_snn_res.', out_dir=args$output_dir,file_prefix=clus_run, verbose=FALSE)
+#}
 
 rm(clus_run)
 rm(obj_clustree)
@@ -683,15 +687,15 @@ if(args$verbose)
 res<-seq(0.1,1.2,by=0.1)
 pc<-c(15,20,25,30,35,40,50)
 
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-'RNA'
 
 for(i in 1:length(pc))
 {
 for(j in 1:length(res))
    {
    sil_run<-paste0(args$file_prefix,'PC',pc[i],'_res',res[j])
-   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='pca',assay='integrated')
-    get_silhouette_plot(s.obj=obj_sil,reduction='pca',dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
+   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='harmony',assay='RNA')
+    get_silhouette_plot(s.obj=obj_sil,reduction='harmony',dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
    }
 }
 
@@ -706,19 +710,19 @@ rm(obj_sil)
 ###(8) CLUSTERING ###
 
 # In the pipeline the clusters are generated by default using 50 PCs at resolution 0.5. These parameters can be modified by the user
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-'RNA'
 
 if(args$verbose)
 {cat('Clustering \n')}
 
 #Find Clusters
-  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay='integrated')
-  obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution)
+  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay='RNA', reduction='harmony',verbose=args$verbose)
+  obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution, graph.name='RNA_snn', verbose=args$verbose)
 
 #Generate UMAP
   if(args$verbose)
   {cat("Genetrating UMAP plots", sep='\n')}
-  obj.integrated<-RunUMAP(obj.integrated, reduction="pca", dims=args$pca_dimensions)
+  obj.integrated<-RunUMAP(obj.integrated, dims=args$pca_dimensions)
 
 #Print UMAPs
 if(!dir.exists(paste0(args$output_dir,'umaps/')))
@@ -766,7 +770,7 @@ write.csv (tab2,paste0(args$output_dir,args$file_prefix,"cells_by_cluster_by_sam
 
 ##(9b) Differential gene expression ##
 
-clusters_num<-levels(obj.integrated$seurat_clusters)
+clusters_num<-levels(obj.integrated)
 DefaultAssay(obj.integrated)<-"RNA"
 marker.list<-differential_gene_exp(obj.integrated, clusters=clusters_num, out_dir=args$output_dir,file_prefix=args$file_prefix,verbose=args$verbose)
 
@@ -826,7 +830,7 @@ rm(out)
 
 # Generating heatmap for top 15 markers per cluster
 
-DefaultAssay(obj.integrated)<-'integrated'
+DefaultAssay(obj.integrated)<-'RNA'
 heatmap_features<-vector()
 top_h<-15
 for(i in 1:length(features.list))
@@ -838,12 +842,6 @@ heatmap_features<-append(heatmap_features,features.list[[i]][1:top_h])
 
 rm(features.list)
 
-#png(paste0(file_name,"Heatmap.png"),width=55,height=34,units="in",res=300)
-h1<-DoHeatmap(obj.integrated,features=heatmap_features)
-ggsave(paste0(args$file_prefix,"Heatmap_integrated.pdf"),path=args$output_dir,width=22,height=17,units="in",h1)
-
-rm(h1)
- 
 # Plot Heatmap for RNA assay
 
 DefaultAssay(obj.integrated)<-'RNA'

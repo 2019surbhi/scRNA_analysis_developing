@@ -20,6 +20,7 @@ library(cluster)
 library(factoextra)
 library(clustree)
 library(ggraph)
+library(harmony)
 
 # Packages for data visualization
 library(ggplot2)
@@ -422,6 +423,15 @@ s.obj.integrated@project.name<-project.name
  return(s.obj.integrated)
 }
 
+
+HarmonyIntegration <- function(s.obj,project.name, nfeatures=3000, verbose=FALSE){
+	s.obj <- ScaleData(s.obj, vars.to.regress='perc.mt', assay="RNA", verbose=verbose)
+	s.obj <- RunPCA(s.obj, assay="RNA", verbose=verbose, npcs=35)
+	s.obj@project.name <-project.name
+	s.obj <- RunHarmony(s.obj, group.by.vars="orig.ident", dims=1:35, verbose=verbose)
+	s.obj <- RunUMAP(s.obj, reduction="harmony", dims=1:35, verbose=verbose, reduction.name="harmony_umap")
+	return(s.obj)
+}
 ### Function to add metadata to Seurat object ###
 ## Note: This function needs to be adapted as per your metafile format (add or modify column names, as needed) ##
 # s.obj - seurat obj to add the meta data to
@@ -551,7 +561,7 @@ differential_gene_exp<-function(s.obj,clusters,out_dir='./',file_prefix="",verbo
 
 # Find markers and export to tsv file
   for(i in 1:length(clusters))
-  {if( sum(s.obj@meta.data$seurat_clusters==clusters[i])<4)
+  {if( sum(s.obj@meta.data[,grep("RNA_snn", colnames(s.obj@meta.data))]==clusters[i])<4)
     {
      cat('Cluster',clusters[i],'has too few cells','\n')
     }else{
@@ -651,7 +661,7 @@ png(paste0(out_dir,file_tag,"dendrogram.png"),width=11,height = 8.5, units="in",
 # reduction - dimentionality reduction to be used (Default: 'pca')
 # assay - which assay to use (Default: 'integrated')
 
-iterative_clus_by_res<-function(s.obj,res, dims_use,reduction='pca',assay='integrated',verbose=FALSE)
+iterative_clus_by_res<-function(s.obj,res, dims_use,reduction='harmony',assay='RNA',verbose=FALSE)
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   DefaultAssay(s.obj)<-assay
@@ -659,8 +669,9 @@ iterative_clus_by_res<-function(s.obj,res, dims_use,reduction='pca',assay='integ
   s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction,assay=assay)
   for(i in 1:length(res))
   {
-    s.obj<-FindClusters(s.obj, res=res[i])
+    s.obj<-FindClusters(s.obj, res=res[i], graph.name='RNA_snn')
   }
+  
   return(s.obj)
 }
 
@@ -733,7 +744,7 @@ get_silhouette_plot<-function(s.obj,reduction='pca',dims=1:50,out_dir='./',file_
  if(!dir.exists(paste0(out_dir,'Silhouette/')))
   {dir.create(paste0(out_dir,'Silhouette/'))}
  out_path<-paste0(out_dir,'Silhouette/')
-  clusters<-s.obj$seurat_clusters
+  clusters<-s.obj@meta.data[,grep("RNA_snn", colnames(s.obj@meta.data))]
   dist.matrix<-dist(x=Embeddings(object=s.obj[[reduction]])[,dims])
   sil<-silhouette(x=as.numeric(as.factor(clusters)),dist=dist.matrix)
   
