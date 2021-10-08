@@ -2,7 +2,7 @@
 
 # This is a script that facilitates running the Ting Lab scRNA seq pipeline on HPC for processing data generated on 10XGenomics platform 
 
-source('./scRNA_pipeline_functions_final_HPC.R')
+source('tinglab_scRNA_pipeline_functions.R')
 
 library(argparser)
 
@@ -209,7 +209,7 @@ if(! dir.exists(argv$out_dir) ){
 }
 
 #Save run parameters - find better ways to save this in txt format
-write.table(argv,paste0(argv$out_dir,"run_parameters.txt"),sep='\t',col.names=FALSE)
+write.csv(argv,paste0(argv$out_dir,"run_parameters.csv"),sep='\t',col.names=FALSE)
 
 # Add separater to run name
 if(argv$run_tag!=''){

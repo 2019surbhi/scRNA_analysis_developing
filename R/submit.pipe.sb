@@ -1,9 +1,0 @@
-#!/bin/bash
-
-#SBATCH -c 48
-#SBATCH --mem=185G
-#SBATCH --job-name="global-test-rpca"
-#SBATCH --mail-type=END
-#SBATCH --mail-user=bradlem4@ccf.org
-module load R
-Rscript scRNA_pipeline_run_final_HPC.R -i ~/beegfs/mouse-bladder/scrna/cr-results/mm10/merged/ -o ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/10-5-optimized-rpca/ -z -r 10-4-rpca-test -y 3000 -t 15,200,12000,4000,1500000 --qc_plots -d 1:50 -e 0.3 --reduction 'rpca' -v --batch_genes 'all' -n Kdm6a,Kdm6b,Kmt2c,Kmt2d,Ptprc

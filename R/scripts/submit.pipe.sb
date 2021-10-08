@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH -c 48
+#SBATCH --mem=185G
+#SBATCH --job-name="10-8-uro-cleaned-matt-dev"
+#SBATCH --mail-type=END
+#SBATCH --mail-user=bradlem4@ccf.org
+#SBATCH -o ../output-files/%A.out
+#SBATCH -e ../error-files/%A.err
+
+module load R
+Rscript tinglab_scRNA_pipeline.R -b ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/subsets/uro-subset_cleaned.rds -o $1 -z -r 10-8-uro-cleaned -y 3000 -t 15,200,12000,4000,1500000 --qc_plots -d 1:50 -e 0.5 -v -n Kdm6a,Kdm6b,Kmt2c,Kmt2d,Krt7,Krt18,Krt5,Krt15,Upk3a,Upk1a,Top2a,Mki67,Shh -u 'clus,sil'
