@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#SBATCH -c 20
+#SBATCH --mem=185G
+#SBATCH --job-name="merged-mouse-qc"
+#SBATCH --mail-type=END
+#SBATCH --mail-user=bradlem4@ccf.org
+#SBATCH --dependency=afterok:448642
+#SBATCH --kill-on-invalid-dep=yes
+module load R
+Rscript scRNA_pipeline_run_final_HPC.R -i ~/beegfs/mouse-bladder/scrna/cr-results/mm10/merged/ -o ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/unoptimized/ --qc_plots -z -r merged-unoptimized-9-14-2021 -y 3000 -c 20 -m 175 -t 20,200,12000,4000,1500000 -n Kdm6a,Kdm6b,Ezh2,Krt5,Upk3a,Pecam1,Dcn,Ptprc,Acta2 --qc_only

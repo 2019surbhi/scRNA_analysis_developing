@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#SBATCH -c 4 
+#SBATCH --mem=8G
+#SBATCH --dependency=afterany:FOO
+#SBATCH -o ../output-files/%A.out
+#SBATCH -e ../error-files/%A.err
+
+module load R
+args_file=$(ls ${1}*arguments.rds)
+sacct -XP -j FOO -o 'JobID,JobName,State,Elapsed,ReqCPUS,ReqMem' | sed 's/|/,/g' > sacct.csv
+Rscript document.R $args_file > r_args.csv
+paste -d, pipeline_branch sacct.csv r_args.csv | tail -n1 >> ../doc.csv
+rm r_args.csv sacct.csv

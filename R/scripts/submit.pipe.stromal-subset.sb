@@ -1,0 +1,9 @@
+#!/bin/bash
+
+#SBATCH -c 48
+#SBATCH --mem=185G
+#SBATCH --job-name="stromal-harmony-test"
+#SBATCH --mail-type=END
+#SBATCH --mail-user=bradlem4@ccf.org
+module load R
+Rscript tinglab_scRNA_pipeline.R -b ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/optimized-9-17/9-17-0.3res-50pc_clustered.rds -o ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/subsets/10-6-stromal-harmony-w-clustree/ -f 10-6-immune-harmony -y 3000 -c 40 -m 175 -n Kdm6a,Kdm6b,Ezh2,Krt5,Upk3a,Pecam1,Dcn,Ptprc,Acta2,Myh11,Col1a1 -d 1:35 -e 0.8 -v -u 'clus,sil'
