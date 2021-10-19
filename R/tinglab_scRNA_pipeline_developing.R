@@ -433,6 +433,31 @@ rm(lab)
 rm(x_lab)
 rm(x_lim)
 
+# Get Vlnplot and Scatterplots as well
+
+obj_merged<-merge(obj.list[[1]],y=obj.list[2:length(obj.list)])
+
+options(bitmapType='cairo')
+png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'genecount_VlnPlot.png'), width=16,height=8,units='in',res=300)
+v1<-VlnPlot(obj_merged, features = "nFeature_RNA")
+dev.off()
+
+png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'UMIcount_VlnPlot.png'), width=16,height=8,units='in',res=300)
+v2<-VlnPlot(obj_merged, features = "nCount_RNA")
+dev.off()
+
+png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
+v3<-VlnPlot(obj_merged, features = "MtPerc")
+dev.off()
+
+png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'scatter_plots.png'),width=16,height=8,units='in',res=300)
+plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "MtPerc")
+plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+p<-plot1 + plot2
+dev.off()
+
+rm(obj_merged)
+
 }
 
 
@@ -454,9 +479,11 @@ if(length(args$thresholds)>1)
  rm(tab_list)
  rm(tab)
 
- # Filter low quality cells [only to compute post filter values, actual filtering not performed at this point]
+ # Filter low quality cells
+ 
  obj_tab_list<-lapply(X=(1:length(obj.list)), FUN=function(x){filter_cells(obj.list[[x]],mt.thres=args$thresholds[1], genecnt.thres=args$thresholds[2:3], libsize.thres=args$thresholds[4:5], verbose=args$verbose)})
-
+ 
+# Extract filtered data
  obj.list<-do.call(c,(lapply(obj_tab_list,`[[`,1)))
  cell.data<-do.call(rbind,(lapply(obj_tab_list, `[[`, 2)))
  cell.data2<-adorn_totals(cell.data,"col")
@@ -515,6 +542,31 @@ if(length(args$thresholds)>1)
   rm(agg)
   rm(x_lab)
   rm(x_lim)
+  
+  # Get Vlnplot and Scatterplots as well
+  obj_merged<-merge(obj.list[[1]],y=obj.list[2:length(obj.list)])
+  
+  options(bitmapType='cairo')
+
+  png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_genecount_VlnPlot.png'), width=16,height=8,units='in',res=300)
+  v1<-VlnPlot(obj_merged, features = "nFeature_RNA")
+  dev.off()
+
+  png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_UMIcount_VlnPlot.png'), width=16,height=8,units='in',res=300)
+  v2<-VlnPlot(obj_merged, features = "nCount_RNA")
+  dev.off()
+
+  png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
+  v3<-VlnPlot(obj_merged, features = "MtPerc")
+  dev.off()
+
+  png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_scatter_plots.png'),width=16,height=8,units='in',res=300)
+  plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "MtPerc")
+  plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+  p<-plot1 + plot2
+  dev.off()
+
+  rm(obj_merged)
 
   }
 }
