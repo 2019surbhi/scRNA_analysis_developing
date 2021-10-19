@@ -447,11 +447,11 @@ v2<-VlnPlot(obj_merged, features = "nCount_RNA")
 dev.off()
 
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
-v3<-VlnPlot(obj_merged, features = "MtPerc")
+v3<-VlnPlot(obj_merged, features = "perc.mt")
 dev.off()
 
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'scatter_plots.png'),width=16,height=8,units='in',res=300)
-plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "MtPerc")
+plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "perc.mt")
 plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 p<-plot1 + plot2
 dev.off()
@@ -557,11 +557,11 @@ if(length(args$thresholds)>1)
   dev.off()
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
-  v3<-VlnPlot(obj_merged, features = "MtPerc")
+  v3<-VlnPlot(obj_merged, features = "perc.mt")
   dev.off()
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_scatter_plots.png'),width=16,height=8,units='in',res=300)
-  plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "MtPerc")
+  plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "perc.mt")
   plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
   p<-plot1 + plot2
   dev.off()
