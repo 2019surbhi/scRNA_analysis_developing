@@ -610,9 +610,10 @@ obj.list<-lapply(X=1:length(obj.list),function(x){FindVariableFeatures(obj.list[
 if(!dir.exists(paste0(args$output_dir,'variable_genes/')))
   {dir.create( paste0(args$output_dir,'variable_genes/'))}
 out_path<-paste0(args$output_dir,'variable_genes/')
+
 lapply(X=1:length(obj.list),function(x){get_var_genes(obj.list[[x]],out_dir=out_path,verbose=args$vebose)})
 
- varplots<-lapply(X=1:length(obj.list),get_var_genes_plot(obj.list[[x]],verbose=args$verbose)})
+varplots<-lapply(obj.list[1:length(obj.list)],get_var_genes_plot,verbose=args$verbose)
 
  pdf(file=paste0(out_path,args$file_prefix,'VariableGenePlots.pdf'),paper='a4')
  print(varplots)
@@ -738,9 +739,9 @@ clus_run=paste0(args$file_prefix,'PC',pc[i])
 obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],reduction=reduction,assay=assay,verbose=args$verbose)
 
 col<-grep('snn',colnames(obj_clustree@meta.data))
-prefix<-gsub('[0-9].+','',colnames(obj_clustree@meta.data)[col[1]]
+prefix<-gsub('[0-9].+','',colnames(obj_clustree@meta.data))[col[1]]
 
-print_clustree_png(obj_clustree,prefix=prefix, out_dir=args$output_dir,file_prefix=clus_run,verbose=args$verbose)
+print_clustree_png(obj_clustree, prefix=prefix, out_dir=args$output_dir, file_prefix=clus_run, verbose=args$verbose)
 
 # Generate clustree geneplots on integrated assay
 print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix=prefix,assay=assay , fun_use='median',out_dir= args$output_dir, file_prefix=clus_run, verbose=FALSE)

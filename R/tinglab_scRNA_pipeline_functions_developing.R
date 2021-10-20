@@ -701,7 +701,7 @@ print_geneplots_on_clustree<-function(s.obj,genes, prefix='integrated_snn_res.',
 { if(verbose)
    {cat("Generating clustree geneplots",sep='\n')}
   
- if(!dir.exists(paste0(out_dir,'clustree_geneplots/',assay,'/')))
+ if(!dir.exists(paste0(out_dir,'ƒgeneplots/',assay,'/')))
   {dir.create(paste0(out_dir,file.path("clustree_geneplots",assay)),recursive=TRUE)}
  out_path<-paste0(out_dir,'clustree_geneplots/',assay,'/')
  
