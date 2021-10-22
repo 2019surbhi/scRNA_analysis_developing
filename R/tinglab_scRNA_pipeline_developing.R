@@ -439,21 +439,21 @@ obj_merged<-merge(obj.list[[1]],y=obj.list[2:length(obj.list)])
 
 options(bitmapType='cairo')
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'genecount_VlnPlot.png'), width=16,height=8,units='in',res=300)
-v1<-VlnPlot(obj_merged, features = "nFeature_RNA")
+VlnPlot(obj_merged, features = "nFeature_RNA")
 dev.off()
 
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'UMIcount_VlnPlot.png'), width=16,height=8,units='in',res=300)
-v2<-VlnPlot(obj_merged, features = "nCount_RNA")
+VlnPlot(obj_merged, features = "nCount_RNA")
 dev.off()
 
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
-v3<-VlnPlot(obj_merged, features = "perc.mt")
+VlnPlot(obj_merged, features = "perc.mt")
 dev.off()
 
 png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'scatter_plots.png'),width=16,height=8,units='in',res=300)
 plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "perc.mt")
 plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-p<-plot1 + plot2
+plot1 + plot2
 dev.off()
 
 rm(obj_merged)
@@ -549,21 +549,21 @@ if(length(args$thresholds)>1)
   options(bitmapType='cairo')
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_genecount_VlnPlot.png'), width=16,height=8,units='in',res=300)
-  v1<-VlnPlot(obj_merged, features = "nFeature_RNA")
+  VlnPlot(obj_merged, features = "nFeature_RNA")
   dev.off()
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_UMIcount_VlnPlot.png'), width=16,height=8,units='in',res=300)
-  v2<-VlnPlot(obj_merged, features = "nCount_RNA")
+  VlnPlot(obj_merged, features = "nCount_RNA")
   dev.off()
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_mt_perc_VlnPlot.png'), width=16,height=8,units='in',res=300)
-  v3<-VlnPlot(obj_merged, features = "perc.mt")
+  VlnPlot(obj_merged, features = "perc.mt")
   dev.off()
 
   png(paste0(args$output_dir,'qc_plot/',args$file_prefix,'post_filter_scatter_plots.png'),width=16,height=8,units='in',res=300)
   plot1 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "perc.mt")
   plot2 <- FeatureScatter(obj_merged, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  p<-plot1 + plot2
+  plot1 + plot2
   dev.off()
 
   rm(obj_merged)
@@ -817,7 +817,7 @@ if(args$verbose)
 {cat('Clustering \n')}
 
 #Find Clusters
-  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay=assay,reduction-reduction)
+  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay=assay,reduction=reduction)
   obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution)
 
 #Generate UMAP
