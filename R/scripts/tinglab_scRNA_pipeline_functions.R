@@ -456,7 +456,7 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
 		cat(paste0("Performing batch correction method: ", reduction),sep='\n')
   	}
 	#Determine min number of neighbors
- 	#mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
+ 	mink<-min(200, min(sapply(seq_along(s.obj.list),function(x) ncol(s.obj.list[[x]]) ))  )
  	#print(paste0("Minimum k-filter: ",mink))
  	if(genes==''){
  		features <- SelectIntegrationFeatures(s.obj.list, nfeatures=3000)
@@ -464,7 +464,7 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
 		if(reduction=="rpca"){
 			s.obj.list <- lapply(s.obj.list, FUN=function(x) RunPCA(x, features=features, verbose=FALSE))
 		}
- 		sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,reduction=reduction,normalization.method="SCT",anchor.features=features)
+ 		sample.anchors<-FindIntegrationAnchors(s.obj.list,dims = 1:30,reduction=reduction,normalization.method="SCT",anchor.features=features, k.filter=mink)
  		s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,normalization.method="SCT")
 	}else if(genes=='all'){
     		all.genes <- lapply(s.obj.list, row.names) %>% Reduce(intersect, .)
@@ -477,7 +477,7 @@ cca_batch_correction<-function(s.obj.list,merged.title,genes='',reduction='cca',
 			cat(paste0("Batch correction - integrating all genes with ",reduction), sep='\n')
         		cat("Total genes being used for integration = ", length(all.genes),'\n')
        		}
-    		sample.anchors <- FindIntegrationAnchors(s.obj.list,normalization.method="SCT", anchor.features=features, reduction=reduction)
+    		sample.anchors <- FindIntegrationAnchors(s.obj.list,normalization.method="SCT", anchor.features=features, reduction=reduction, k.filter=mink)
     		s.obj.integrated<-IntegrateData(anchorset=sample.anchors, dims=1:30,features.to.integrate=all.genes,normalization.method="SCT")   
    	}else{
       		if(verbose){
