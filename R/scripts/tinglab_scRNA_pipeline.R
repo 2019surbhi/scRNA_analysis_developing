@@ -700,6 +700,7 @@ if(!dir.exists(paste0(argv$out_dir,'umaps/')))
 
 customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group=NULL,split=NULL,dot=0.3,save=TRUE,out=out_dir,run_tag=argv$run_tag)
 customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='orig.ident',split=NULL,dot=0.3,save=TRUE,out=out_dir,run_tag=argv$run_tag)
+customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='doubletPrediction',split=NULL,dot=0.3,save=TRUE,out=out_dir,run_tag=argv$run_tag)
 
 if(argv$meta_file!='')
 {
