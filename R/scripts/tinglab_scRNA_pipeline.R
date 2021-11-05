@@ -338,8 +338,7 @@ if(args$object=='')
     obj.list<-lapply(args$samples[1:n],create_seurat_obj_10X,input_dir=args$input_dir,args$data_dir,verbose=args$verbose)
     }
     
-}else # [if-else block 1]: If object is specified then run subset analysis
-  {
+}else{ # [if-else block 1]: If object is specified then run subset analysis
    if(args$verbose)
      {cat("Begin sub-clustering",'\n')}
    
@@ -358,21 +357,21 @@ if(args$object=='')
    #sub.counts<-list()
 
    #Split the subsetted object by sample
-   #if(args$verbose)
-   # { cat("Splitting object by sample ID",'\n')}
-   #sub.list<-SplitObject(sub, split.by = "orig.ident")
-   #sample.id<-names(sub.list)
+   if(args$verbose)
+    { cat("Splitting object by sample ID",'\n')}
+   sub.list<-SplitObject(sub, split.by = "orig.ident")
+   sample.id<-names(sub.list)
 
    #Extract counts data
-   #sub.counts<-lapply(X=1:length(sub.list), function(x) {return(sub.list[[x]]@assays$RNA@counts)})
+   sub.counts<-lapply(X=1:length(sub.list), function(x) {return(sub.list[[x]]@assays$RNA@counts)})
    DefaultAssay(sub) <- "RNA"
    #Create Seurat object
-   #obj.list<-mapply(create_seurat_obj_from_counts_data,sub.counts,sample.id,verbose=args$verbose)
+   obj.list<-mapply(create_seurat_obj_from_counts_data,sub.counts,sample.id,verbose=args$verbose)
    obj.list <- sub
-   #rm(sub)
-   #rm(sub.list)
-   #rm(sub.counts)
-   #rm(sample.id)
+   rm(sub)
+   rm(sub.list)
+   rm(sub.counts)
+   rm(sample.id)
 }
 
 ###(2) QC ###
@@ -546,7 +545,7 @@ cat('Obj list size: ', length(obj.list), '\n')
 
 ###(4) Batch correction and integration ###
 
-obj.integrated <- HarmonyIntegration(obj.list, project.name=args$file_prefix, nfeatures=args$hvg, verbose=args$verbose)
+obj.integrated <- HarmonyIntegration(obj.list, project.name=args$file_prefix, nfeatures=args$hvg,pcs=args$pca_dimensions,verbose=args$verbose)
 
 #if(length(obj.list)>1)
 #{
@@ -593,13 +592,13 @@ if(clustree)
 }
 
 ##(6a) Run PCA ##
-DefaultAssay(obj.integrated)<-'RNA'
+DefaultAssay(obj.integrated) <- 'RNA'
 
 # Scale data
 if(args$verbose)
 {cat('Running PCA on integrated data')}
-  all.features<-rownames(obj.integrated)
-  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=args$verbose)
+all.features<-rownames(obj.integrated)
+obj.integrated<-ScaleData(obj.integrated,features=all.features,vars.to.regress="perc.mt",verbose=args$verbose)
  
 # Run PCA
 obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
@@ -631,7 +630,7 @@ if(args$verbose)
 {cat('Running clustree \n')}
 
 res<-seq(0.1,1.2,by=0.1)
-pc<-c(15,20,25,30,35,40,50)
+pc<-c(15,20,25,30,35,40,45,50)
 
 for(i in 1:length(pc))
 {
@@ -685,16 +684,16 @@ if(args$verbose)
 
 
 res<-seq(0.1,1.2,by=0.1)
-pc<-c(15,20,25,30,35,40,50)
+pc<-c(15,20,25,30,35,40,45,50)
 
-DefaultAssay(obj.integrated)<-'RNA'
+DefaultAssay(obj.integrated)<-'integrated'
 
 for(i in 1:length(pc))
 {
 for(j in 1:length(res))
    {
    sil_run<-paste0(args$file_prefix,'PC',pc[i],'_res',res[j])
-   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='harmony',assay='RNA')
+   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='harmony',assay='integrated')
     get_silhouette_plot(s.obj=obj_sil,reduction='harmony',dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
    }
 }
@@ -715,14 +714,14 @@ DefaultAssay(obj.integrated)<-'RNA'
 if(args$verbose)
 {cat('Clustering \n')}
 
-#Find Clusters
-  obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions,assay='RNA', reduction='harmony',verbose=args$verbose)
-  obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution, graph.name='RNA_snn', verbose=args$verbose)
-
 #Generate UMAP
   if(args$verbose)
   {cat("Genetrating UMAP plots", sep='\n')}
-  obj.integrated<-RunUMAP(obj.integrated, dims=args$pca_dimensions)
+obj.integrated<-RunUMAP(obj.integrated, dims=args$pca_dimensions, reduction='harmony', verbose=args$verbose)
+
+#Find Clusters
+obj.integrated<-FindNeighbors(obj.integrated, dims=args$pca_dimensions, reduction='harmony',verbose=args$verbose)
+obj.integrated<-FindClusters(obj.integrated, res=args$cluster_resolution, graph.name='RNA_snn', verbose=args$verbose)
 
 #Print UMAPs
 if(!dir.exists(paste0(args$output_dir,'umaps/')))
@@ -732,6 +731,8 @@ if(!dir.exists(paste0(args$output_dir,'umaps/')))
 customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group=NULL,split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
 
 customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='orig.ident',split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
+
+customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='doubletPrediction',split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
 
 if(args$meta_file!='')
 {

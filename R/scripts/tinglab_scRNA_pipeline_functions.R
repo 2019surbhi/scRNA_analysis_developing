@@ -424,12 +424,12 @@ s.obj.integrated@project.name<-project.name
 }
 
 
-HarmonyIntegration <- function(s.obj,project.name, nfeatures=3000, verbose=FALSE){
+HarmonyIntegration <- function(s.obj,project.name, nfeatures=3000,pcs=1:35, verbose=FALSE){
 	s.obj <- ScaleData(s.obj, vars.to.regress='perc.mt', assay="RNA", verbose=verbose)
 	s.obj <- RunPCA(s.obj, assay="RNA", verbose=verbose, npcs=50)
 	s.obj@project.name <-project.name
-	s.obj <- RunHarmony(s.obj, group.by.vars="orig.ident", dims=1:35, verbose=verbose)
-	s.obj <- RunUMAP(s.obj, reduction="harmony", dims=1:35, verbose=verbose, reduction.name="harmony_umap")
+	s.obj <- RunHarmony(s.obj, group.by.vars="orig.ident", dims=pcs, verbose=verbose)
+        s.obj<-RunUMAP(obj.integrated, dims=args$pca_dimensions, reduction='harmony', verbose=args$verbose)
 	return(s.obj)
 }
 ### Function to add metadata to Seurat object ###
@@ -665,13 +665,11 @@ iterative_clus_by_res<-function(s.obj,res, dims_use,reduction='harmony',assay='R
 { if(verbose)
    {cat("Performing iterative clustering by resolution for PCs 1:",max(dims_use),'\n')}
   DefaultAssay(s.obj)<-assay
-
   s.obj<-FindNeighbors(s.obj,dims=dims_use,reduction=reduction,assay=assay)
   for(i in 1:length(res))
   {
     s.obj<-FindClusters(s.obj, res=res[i], graph.name='RNA_snn')
   }
-  
   return(s.obj)
 }
 
