@@ -48,7 +48,7 @@ parser<-add_argument(
   short='-l',
   type="character",
   default='all',
-  help="Enter which clusters (separated by ,) to be used for subset analysis. Use this argument only when performing subset analysis to specify which clusters to use to subset the specified Seurat obj")
+  help="Enter which clusters (separated by ,) to be used for subset analysis. Use this argument only when performing subset analysis to specify which clusters to use to subset the specified Seurat obj. Specify this option as 'none' to skip subset and batch correction")
 
 parser<-add_argument(
   parser,
@@ -110,9 +110,9 @@ parser<-add_argument(
   parser,
   arg='--batch_correction',
   short='-C',
-  default='cca-mnn',
+  default='none',
   type='character',
-  help="Enter the batch correction method to be used. Options are: harmony and cca-mnn. Default is cca-mnn")
+  help="Enter the batch correction method to be used. Options are: harmony and cca-mnn. Default is none and if not changed the rest of the piepline will run on the single input object without batch correction")
 
 parser<-add_argument(
   parser,
@@ -285,6 +285,8 @@ options(future.rng.onMisue = "ignore")
 
 setwd(args$output_dir)
 
+#Initialize skip to FALSE to avoid skipping batch correction
+skip<-FALSE
 obj.list<-list()
 
 # [if-else block 1]: If no object specified, then the script looks for expression matrix in the input directory
@@ -324,8 +326,9 @@ if(args$object=='')
    rm(s.list)
    rm(s)
 
-  }else ## [if-else block 1a]: If single path specified
-    {
+  }else
+    {## [if-else block 1a]: If single path specified
+
      # Extract samples list
      if(args$verbose)
         {cat('Loading data from single path', '\n')}
@@ -346,24 +349,35 @@ if(args$object=='')
     obj.list<-lapply(args$samples[1:n],create_seurat_obj_10X,input_dir=args$input_dir,args$data_dir,verbose=args$verbose)
     }
     
-}else # [if-else block 1]: If object is specified then run subset analysis
-  {
+}else
+  { # [if-else block 1]: If object is specified then run subset analysis
+  
    if(args$verbose)
      {cat("Begin sub-clustering",'\n')}
    
    #Load Seurat object (containing all samples)
    obj<-readRDS(args$object)
 
-   if(args$clusters=='all') ## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
-      {
-          sub<-obj
-      }else ## [if-else block 1d]: Subset Seurat object to include only specific clusters defined by user
-        {
-		sub<-subset(obj,idents=args$clusters)
-	 	}
+   if(args$clusters=='none')
+     { ## [if-else block 1d]: if clusters='none' then the object is entered to run rest of the pipeline skipping batch correction and the steps prior to it
 
-   sub.list<-list()
-   sub.counts<-list()
+          obj.integrted<-obj
+          skip<-TRUE
+      }else if(args$clusters=='all')
+        {## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
+		 sub<-obj
+         
+	 	}else
+            {## [if-else block 1d]: Subset Seurat object to include only specific clusters defined by user
+                sub<-subset(obj,idents=args$clusters)
+            }
+    }
+
+if(skip!=TRUE)
+   {
+       
+    sub.list<-list()
+    sub.counts<-list()
 
    #Split the subsetted object by sample
    if(args$verbose)
@@ -381,7 +395,7 @@ if(args$object=='')
    rm(sub.list)
    rm(sub.counts)
    rm(sample.id)
-  }
+  
 
 ###(2) QC ###
 
@@ -582,27 +596,44 @@ if(args$qc_only)
 
 ##(a) Log normalize ##
 
-obj.list<-lapply(obj.list[1:length(obj.list)],NormalizeData,normalization.method = 'LogNormalize',scale.factor = 10^4, verbose =args$verbose)
+if(args$verbose)
+{cat('Performing Log normalization \n')}
 
-if(args$batch_correction=='cca-mnn')
-{
-    assay<-'integrated'
-    reduction<-'pca'
-    
-}else if(args$batch_correction=='harmony')
-    {
-     assay<-'RNA'
-     reduction<-'harmony'
-     obj.list<-merge(x=obj.list[[1]],y=obj.list[2:length(obj.list)])
-     DefaultAssay(obj.list)<-'RNA'
-    }else
+n<-length(obj.list)
+obj.list<-lapply(X=1:n,function(x){NormalizeData(obj.list[[x]],normalization.method = 'LogNormalize',scale.factor = 10^4, verbose =args$verbose)})
+
+if(args$verbose)
+{cat('Preparing batch correction using ',args$batch_correction, '\n')}
+
+if(args$batch_correction!='none')
+    {if(args$batch_correction=='cca-mnn')
         {
-            cat('You did not enter correct batch correction method, setting it to cca-mnn')
-            args$batch_correction<-'cca-mnn'
-        }
+            assay<-'integrated'
+            reduction<-'pca'
+    
+        }else if(args$batch_correction=='harmony')
+            {
+                assay<-'RNA'
+                reduction<-'harmony'
+                obj.merged<-merge(x=obj.list[[1]],y=obj.list[2:length(obj.list)])
+                DefaultAssay(obj.list)<-'RNA'
+            }else
+                  {
+                    cat('You did not enter correct batch correction method, setting it to cca-mnn')
+                    args$batch_correction<-'cca-mnn'
+                    assay<-'integrated'
+                    reduction<-'pca'
+                }
+  }else
+    {
+      obj.list<-obj    
+    }
 
 ##(a) Find variable genes ##
 
+if(args$verbose)
+{cat('Finding Variable genes per sample \n')}
+    
 obj.list<-lapply(X=1:length(obj.list),function(x){FindVariableFeatures(obj.list[[x]],selection.method = 'vst', nfeatures=args$hvg, verbose = args$verbose)})
 
 #Get variable genes table and plots for each sample
@@ -636,24 +667,39 @@ if(length(obj.list)>1)
 
 }else if(args$batch_correction=='harmony')
  {
+  # Variable features for merged obj
+  FindVariableFeatures(obj.merged,selection.method = 'vst', nfeatures=args$hvg, verbose = args$verbose)
+  
+  #Var genes table
+  get_var_genes(obj.merged,out_dir=out_path,verbose=args$vebose)
+  
+  # Var genes plot
+  varplots<-get_var_genes_plot(obj.merged,verbose=args$verbose)
+
+   pdf(file=paste0(out_path,args$file_prefix,'VariableGenePlots.pdf'),paper='a4')
+   print(varplots)
+   dev.off()
+
   # Scaling
-  all.features<-rownames(obj.list)
-  obj.list<-ScaleData(obj.list,features=all.features, verbose=verbose,assay = 'RNA')
+  all.features<-rownames(obj.merged)
+  obj.list<-ScaleData(obj.merged,features=all.features, verbose=verbose,assay = 'RNA')
   
    # PCA
-   obj.list<-RunPCA(obj.list, npcs=50, verbose=verbose,assay = 'RNA')
+   obj.list<-RunPCA(obj.merged, npcs=50, verbose=verbose,assay = 'RNA')
    
    #Run Harmony
-   obj.integrated<-RunHarmony(obj.list,
+   obj.integrated<-RunHarmony(obj.merged,
                   group.by.vars = "orig.ident",
                   plot_convergence = FALSE,
                   assay.use = 'RNA')
  }
+}else
+  {
+    # This allows skipping batch correction in case user wants to run the rest of the pipeline on an already batch corrected object (most likely batch corrected by another method)
+    
+   obj.integrated<-obj.list
+  }
 
-}else # This allows skipping batch correction in case user wants to run the rest of the pipeline on an already batch corrected object (most likely batch corrected by another method)
- {
-   obj.integrated=obj.list[[1]]
- }
 
 ###(5) Add meta data ### (optional)
 
@@ -678,6 +724,8 @@ if((args$save=='integrated')||(args$save=='both'))
   saveRDS(obj.integrated,file=paste0(args$output_dir,args$file_prefix,"integrated_only.rds"))
  }
 
+ } # skip until this point if only running post processing
+ 
 ###(6) Pre-clustering processing ###
 
 if(clustree)
@@ -686,22 +734,26 @@ if(clustree)
  obj.integrated_RNA<-obj.integrated
 }
 
-##(6a) Run PCA ## (skip if ran harmony)
+##(6a) Run PCA ## (skip if ran harmony or if reduction already exists)
 
-if(args$batch_correction!='harmony')
+if(is.null(obj.integrated@reductions$pca)==TRUE)
 {
-DefaultAssay(obj.integrated)<-'integrated'
+ if(is.null(obj.integrated@reductions$harmony)==TRUE)
+    {
+       # Perform PCA since no reduction assay found
+       DefaultAssay(obj.integrated)<-'integrated'
 
-# Scale data
-if(args$verbose)
-{cat('Running PCA on integrated data')}
-  all.features<-rownames(obj.integrated)
-  obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=args$verbose)
- 
-# Run PCA
-obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
+        if(args$verbose)
+        {cat('Running PCA on integrated data')}
+          all.features<-rownames(obj.integrated)
+          obj.integrated<-ScaleData(obj.integrated,features=all.features, verbose=args$verbose)
+         
+        # Run PCA
+        obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
 
+    }
 }
+
 
 ##(6b) PCA Plots ##
 

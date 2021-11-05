@@ -5,8 +5,8 @@
 
 #!/usr/bin/env Rscript
 
-library(argparser)
-library(future)
+#library(argparser)
+#library(future)
 
 # Data processing libraries
 library(dplyr)
