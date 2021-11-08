@@ -429,7 +429,7 @@ HarmonyIntegration <- function(s.obj,project.name, nfeatures=3000,pcs=1:35, verb
 	s.obj <- RunPCA(s.obj, assay="RNA", verbose=verbose, npcs=50)
 	s.obj@project.name <-project.name
 	s.obj <- RunHarmony(s.obj, group.by.vars="orig.ident", dims=pcs, verbose=verbose)
-        s.obj<-RunUMAP(obj.integrated, dims=args$pca_dimensions, reduction='harmony', verbose=args$verbose)
+        s.obj<-RunUMAP(s.obj, dims=args$pca_dimensions, reduction='harmony', verbose=args$verbose)
 	return(s.obj)
 }
 ### Function to add metadata to Seurat object ###
