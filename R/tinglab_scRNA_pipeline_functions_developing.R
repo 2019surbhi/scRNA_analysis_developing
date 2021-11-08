@@ -16,6 +16,7 @@ library(stringr)
 
 # 'Omics' related packages
 library(Seurat)
+library(harmony)
 library(cluster)
 library(factoextra)
 library(clustree)
