@@ -812,18 +812,23 @@ print_geneplots_on_clustree(obj_clustree,genes=args$gene_list,prefix=prefix,assa
 }
 
 # Generate clustree geneplots on RNA assay using a copy of batch corrected object
-DefaultAssay(obj.integrated_RNA)<-'RNA'
 
-cat('Scaling \n')
+# Skip this step if harmony integration was run
 
-all.genes<-rownames(obj.integrated_RNA)
-obj.integrated_RNA<-ScaleData(obj.integrated_RNA,features=all.genes)
+if(args$batch_correction!='harmony')
+{
+ DefaultAssay(obj.integrated_RNA)<-'RNA'
+
+ cat('Scaling \n')
+
+ all.genes<-rownames(obj.integrated_RNA)
+ obj.integrated_RNA<-ScaleData(obj.integrated_RNA,features=all.genes)
 
 cat('Running PCA on RNA assay \n')
 
 # Get var features from RNA assay if integrated assay is null or has 0 var.features
 
-if((is.null(obj.integrated@assays$integrated))==FALSE)
+if((is.null(obj.integrated@assays$integrated@var.features))==FALSE)
 {
  v<-obj.integrated@assays$integrated@var.features %>% length()
  
@@ -857,6 +862,7 @@ rm(obj.integrated_RNA)
 
 }
 
+}
 
 ##(7b) Generate silhouette plots ## (optional)
 if(sil)
