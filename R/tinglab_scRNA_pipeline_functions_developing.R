@@ -721,7 +721,7 @@ print_geneplots_on_clustree<-function(s.obj,genes, prefix='integrated_snn_res.',
 
 
 ### Function to generate Silhouette plots ###
-## This function generates Silhouette plots for clusters of a give seurat obj using 'cluster' and 'factoExtra' packages ##
+## This function generates Silhouette plots for clusters of a given seurat obj using 'cluster' and 'factoExtra' packages ##
 # s.obj - Seurat obj
 # reduction - which dimentionality reduction to use (Default: 'pca')
 # dims - range of PCs that were used for clustering the seurat obj (Default: 1:50)
@@ -744,3 +744,115 @@ get_silhouette_plot<-function(s.obj,reduction='pca',dims=1:50,out_dir='./',file_
   fviz_silhouette(sil)
   ggsave(filename=paste0(file_prefix,"_silhouette.png"),path=out_path, width=33,height=10)
 }
+
+##### Additional visualization functions ######
+
+### Function to generate Dotplot ###
+## This function generates Dotplot for clusters of a given seurat obj ##
+# m - list of markers to plot
+# s.obj - Seurat obj
+# out - output path where plots are saved
+# run_name - file prefix
+# assay_d - assay to use (Default: 'RNA')
+# split - metadata specification for split.by argument in DotPlot (Default: NULL)
+# col - any 2 color, if split argument is specified, col need to be a vector of color >= number of unique elements in the split arguments
+# text_col - color of text
+# h - height of plot in inches
+# w - width of plot in inches
+# group - metadata specification for group.by argument in DotPlot (Default: 'seurat_clusters')
+
+
+dotplot_grids<-function(m,s.obj, out,run_name, assay_d='RNA', split=NULL, col=c("lightgrey","blue"), text_col='black', h=8.5,w=11, group='seurat_clusters')
+{
+  d<-DotPlot(s.obj,assay = assay_d,
+             features = m,
+             col.min = 0,
+             split.by=split,
+             cols=col, group.by = group)
+
+d<-d +
+  theme(axis.text.x = element_text(angle = 90))+
+  xlab('')+
+  ylab('')+
+  theme(
+    #panel.grid.major.y = element_blank(),
+    #panel.grid.minor.y = element_blank(),
+    axis.text.x = element_text(colour=text_col),
+    panel.grid.major.x = element_line(colour="grey80",
+                                      linetype = "dashed"),
+    panel.grid.major.y = element_line(colour = "grey80", linetype = "dashed"))
+
+ggsave(paste0(out,run_name,assay_d,'_Dotplot.png'), width=w, height=h, units="in",d)
+
+}
+
+
+### Function to get metadata table ###
+
+get_meta_tab_for_barplot<-function(obj,meta)
+{
+tab<-table(obj@meta.data[,meta],
+           obj@meta.data$seurat_clusters)
+  
+tab<-as.data.frame.matrix(tab)
+columns<-colnames(tab)
+tab$sample<-rownames(tab)
+tab2<-tab %>% pivot_longer(columns)
+colnames(tab2)<-c(meta,'cluster','cells')
+
+return(tab2)
+
+}
+
+
+### Function to generate barplot by selected metadata ###
+## This function generates barplot by splitting the data by a specified metadata feature ##
+
+#
+
+print_cluster_by_meta_barplot<-function(obj,meta='sample',tab=NULL,cols=NULL,out,run_tag,w=11,h=8.5,prop=FALSE,order=TRUE)
+{
+
+if(is.null(tab)==TRUE)
+{
+  tab<-get_meta_tab_for_barplot(obj,meta)
+
+}
+# Create color vector if not provided
+if(is.null(cols)==TRUE)
+{cols<-get_umap_cols(obj,meta=meta)
+  names(cols)<-NULL
+  }
+  
+breaks<-tab[,meta] %>% unique() %>% pull()
+
+if(prop==FALSE)
+{
+  pos<-'stack'
+  ftag<-'CellCount'
+}else
+{
+  pos<-'fill'
+  ftag<-'Proportions'
+}
+
+p<-ggplot(tab)+
+  geom_col(aes_string(x='reorder(cluster,-cells)',
+               y='cells',
+          fill=meta),
+          position=pos,
+          colour='black',width = 0.9)+
+  scale_fill_manual(breaks=breaks,values = cols)+
+  xlab('Cluster')+
+  ylab(ftag)+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line('black'))
+
+
+ggsave(paste0(out,run_tag,'cells_by_clusters_by_',
+              meta,'_',ftag,'_w_legend.png'),
+           width=w, height=h, units="in",p)
+}
+
