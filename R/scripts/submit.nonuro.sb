@@ -2,11 +2,11 @@
 
 #SBATCH -c 48
 #SBATCH --mem=185G
-#SBATCH --job-name="10-14-non-uro-0.2res-matt-dev"
+#SBATCH --job-name="11-8-non-uro-matt-dev"
 #SBATCH --mail-type=END
 #SBATCH --mail-user=bradlem4@ccf.org
 #SBATCH -o ../output-files/%A.out
 #SBATCH -e ../error-files/%A.err
 
 module load R
-Rscript tinglab_scRNA_pipeline.R -b ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/subsets/non_uro.rds -o $1 -z -r 10-14-non-uro-0.2res -y 3000 -d 1:35 -e 0.2 -v
+Rscript tinglab_scRNA_pipeline.R -b ~/beegfs/mouse-bladder/scrna/seurat-results/mm10/subsets/11-8-non-uro.Rds -o $1 -z -r 11-9-non-uro -y 3000 -d 1:50 -e 0.5 -v -u clustree,sil

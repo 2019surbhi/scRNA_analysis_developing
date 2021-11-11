@@ -608,7 +608,7 @@ saveRDS(obj.integrated, paste0(argv$out_dir,argv$run_tag, "PCA_integrated.rds"))
 # Run clustree geneplot
 print("Running Clustree gene plots...")
 res<-seq(0.1,1.2,by=0.1)
-pc<-c(15,20,25,30,35,40,50)
+pc<-c(15,20,25,30,35,40,45,50)
 for(i in 1:length(pc))
 {
  obj_clustree<-iterative_clus_by_res(obj.integrated, res=res,dims_use=1:pc[i],verbose=argv$verbose,assay='integrated')
