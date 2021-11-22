@@ -286,8 +286,7 @@ if(args$object=='')
  paths.list<-unlist(strsplit(args$input_dir,split=':'))
   
   ## [if-else block 1a]: If multiple paths are specified by the user
-  if(length(paths.list)>1)
-   {
+  if(length(paths.list)>1){
     if(args$verbose)
       {cat("Loading data from multiple datasets/paths" ,'\n')}
 
@@ -316,8 +315,7 @@ if(args$object=='')
    rm(s.list)
    rm(s)
 
-  }else ## [if-else block 1a]: If single path specified
-    {
+  }else{ ## [if-else block 1a]: If single path specified
      # Extract samples list
      if(args$verbose)
         {cat('Loading data from single path', '\n')}
@@ -336,7 +334,7 @@ if(args$object=='')
     n<-length(args$samples)
     #Create Seurat object from single directory
     obj.list<-lapply(args$samples[1:n],create_seurat_obj_10X,input_dir=args$input_dir,args$data_dir,verbose=args$verbose)
-    }
+}
     
 }else{ # [if-else block 1]: If object is specified then run subset analysis
    if(args$verbose)
@@ -345,7 +343,7 @@ if(args$object=='')
    #Load Seurat object (containing all samples)
    obj<-readRDS(args$object)
 
-   if(length(args$clusters)==1) ## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
+   if(args$clusters=='all') ## [if-else block 1d]: if clusters='all' then no subsetting is done (useful for running analysis on manually merged obj)
       {
           sub<-obj
       }else ## [if-else block 1d]: Subset Seurat object to include only specific clusters defined by user
@@ -367,7 +365,7 @@ if(args$object=='')
    DefaultAssay(sub) <- "RNA"
    #Create Seurat object
    obj.list<-mapply(create_seurat_obj_from_counts_data,sub.counts,sample.id,verbose=args$verbose)
-   obj.list <- sub
+   #obj.list <- sub
    rm(sub)
    rm(sub.list)
    rm(sub.counts)
@@ -519,24 +517,33 @@ if(args$qc_only)
 
 ###(3) Data pre-processing ###
 
+if(length(obj.list) > 1){
+        merged.obj <- merge(obj.list[[1]], y=obj.list[2:length(obj.list)])
+}else{
+	merged.obj <- obj.list
+}
+
 if(args$verbose)
 {cat('Following ', length(obj.list), ' samples will be integrated: \n')
  cat(names(obj.list))
 }
 
-obj.list<-pre_process(obj.list, hvg=args$hvg, verbose=args$verbose)
+merged.obj <- pre_process(merged.obj, hvg=args$hvg, verbose=args$verbose)
 
 #Get variable genes table and plots for each sample
 # Prepare output file
 if(!dir.exists(paste0(args$output_dir,'variable_genes/')))
   {dir.create( paste0(args$output_dir,'variable_genes/'))}
 out_path<-paste0(args$output_dir,'variable_genes/')
-get_var_genes(obj.list,out_dir=out_path,verbose=args$verbose)
+obj.list <- lapply(obj.list, function(x) FindVariableFeatures(x, nfeatures=args$hvg))
+lapply(obj.list, function(x) get_var_genes(x,out_dir=out_path,verbose=args$verbose))
 
- varplots<-get_var_genes_plot(obj.list, verbose=args$verbose)
+for(i in obj.list){
+ varplots<-get_var_genes_plot(i, verbose=args$verbose)
  pdf(file=paste0(out_path,args$file_prefix,'VariableGenePlots.pdf'),paper='a4')
  print(varplots)
  dev.off()
+}
 
 rm(out_path)
 rm(varplots)
@@ -545,7 +552,7 @@ cat('Obj list size: ', length(obj.list), '\n')
 
 ###(4) Batch correction and integration ###
 
-obj.integrated <- HarmonyIntegration(obj.list, project.name=args$file_prefix, nfeatures=args$hvg,pcs=args$pca_dimensions,verbose=args$verbose)
+obj.integrated <- HarmonyIntegration(merged.obj, project.name=args$file_prefix, nfeatures=args$hvg,pcs=args$pca_dimensions,verbose=args$verbose)
 
 #if(length(obj.list)>1)
 #{

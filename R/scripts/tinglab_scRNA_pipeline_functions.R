@@ -365,7 +365,6 @@ get_var_genes<-function(s.obj,out_dir='./',verbose=FALSE)
 {
  
   f.name<-paste0(out_dir,s.obj@project.name,'-variableGenes.tsv')
-  
   #Rank and sort variable genes
   var.gen.data<-HVFInfo(s.obj)
   var.gen.data<-var.gen.data[order(var.gen.data[,3],decreasing = TRUE),]
@@ -424,7 +423,8 @@ s.obj.integrated@project.name<-project.name
 }
 
 
-HarmonyIntegration <- function(s.obj,project.name, nfeatures=3000,pcs=1:35, verbose=FALSE){
+HarmonyIntegration <- function(s.obj, project.name, nfeatures=3000, pcs=1:35, verbose=FALSE){
+        s.obj <- FindVariableFeatures(s.obj, nfeatures=nfeatures)
 	s.obj <- ScaleData(s.obj, vars.to.regress='perc.mt', assay="RNA", verbose=verbose)
 	s.obj <- RunPCA(s.obj, assay="RNA", verbose=verbose, npcs=50)
 	s.obj@project.name <-project.name
