@@ -175,6 +175,14 @@ parser<-add_argument(
   flag=TRUE,
   help="Set flag for printing output messages during the run")
 
+parser <- add_argument(
+  parser,
+  arg="--custom_hvgs",
+  short = "-Y",
+  type="character",
+  default="",
+  help = "Custom list of HVGs provided in a csv format")
+
 args <- parse_args(parser)
 
 #Print run parameters
@@ -258,6 +266,10 @@ sil<-ifelse('sil' %in% args$clustering_optimization,TRUE,FALSE)
 #Generate a list of genes for clustree from input
 args$gene_list<-unlist(strsplit(args$gene_list,split=','))
 
+if(args$custom_hvgs != ''){
+  custom.hvgs <- read.csv(args$custom_hvgs)
+}
+
 # Print processed arguments
 cat("List of processed arguments:",'\n')
 args
@@ -268,12 +280,6 @@ saveRDS(args,paste0(args$output_dir,args$file_prefix,"arguments.rds"))
 
 
 ###(1) Load data or prepare subset analysis data ###
-
-#Facilitate parallel processing
-plan("multicore", workers=args$cores)
-options(future.globals.maxSize=((args$mem*1000)*1024^2))
-options(future.rng.onMisue = "ignore")
-#n<-length(args$samples)
 
 setwd(args$output_dir)
 
@@ -528,6 +534,11 @@ if(args$verbose)
  cat(names(obj.list))
 }
 
+# Perform doublet analysis [placeholder]
+
+
+
+# Find variable genes and normalize data 
 merged.obj <- pre_process(merged.obj, hvg=args$hvg, verbose=args$verbose)
 
 #Get variable genes table and plots for each sample
@@ -552,7 +563,7 @@ cat('Obj list size: ', length(obj.list), '\n')
 
 ###(4) Batch correction and integration ###
 
-obj.integrated <- HarmonyIntegration(merged.obj, project.name=args$file_prefix, nfeatures=args$hvg,pcs=args$pca_dimensions,verbose=args$verbose)
+obj.integrated <- HarmonyIntegration(merged.obj, project.name=args$file_prefix, nfeatures=args$hvg, pcs=args$pca_dimensions, custom.hvgs = custom.hvgs, verbose=args$verbose)
 
 #if(length(obj.list)>1)
 #{
@@ -605,7 +616,7 @@ DefaultAssay(obj.integrated) <- 'RNA'
 if(args$verbose)
 {cat('Running PCA on integrated data')}
 all.features<-rownames(obj.integrated)
-obj.integrated<-ScaleData(obj.integrated,features=all.features,vars.to.regress="perc.mt",verbose=args$verbose)
+#obj.integrated<-ScaleData(obj.integrated,features=all.features,vars.to.regress="perc.mt",verbose=args$verbose)
  
 # Run PCA
 obj.integrated<-RunPCA(obj.integrated, npcs=50,ndims.print = 1:15, verbose=args$verbose)
@@ -628,6 +639,11 @@ ggsave(paste0(args$output_dir,args$file_prefix,"PC_gene_plots.pdf"), width=8.5, 
 
 
 ###(7) Clustering Optimization ### (optional)
+
+#Facilitate parallel processing
+plan("multicore", workers=args$cores)
+options(future.globals.maxSize=((args$mem*1000)*1024^2))
+options(future.rng.onMisue = "ignore")
 
 ##(7a) Generating clustree plots ## (optional)
 if(clustree)
@@ -693,14 +709,12 @@ if(args$verbose)
 res<-seq(0.1,1.2,by=0.1)
 pc<-c(15,20,25,30,35,40,45,50)
 
-DefaultAssay(obj.integrated)<-'integrated'
-
 for(i in 1:length(pc))
 {
 for(j in 1:length(res))
    {
    sil_run<-paste0(args$file_prefix,'PC',pc[i],'_res',res[j])
-   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='harmony',assay='integrated')
+   obj_sil<-iterative_clus_by_res(obj.integrated,dims_use=1:pc[i],res=res[j],verbose=args$verbose,reduction='harmony', assay='RNA')
     get_silhouette_plot(s.obj=obj_sil,reduction='harmony',dims=1:pc[i],out_dir=args$output_dir,file_prefix=sil_run,verbose=args$verbose)
    }
 }
@@ -739,7 +753,7 @@ customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group=NULL
 
 customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='orig.ident',split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
 
-customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='doubletPrediction',split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
+#customized_umap(obj.integrated, umap_cols=NULL,label=TRUE,title=NULL, group='doubletPrediction',split=NULL,dot=0.3,save=TRUE,out=out_dir,file_prefix=args$file_prefix)
 
 if(args$meta_file!='')
 {
@@ -853,7 +867,7 @@ rm(features.list)
 # Plot Heatmap for RNA assay
 
 DefaultAssay(obj.integrated)<-'RNA'
-obj.integrated<-ScaleData(obj.integrated, features=rownames(obj.integrated))
+obj.integrated<-ScaleData(obj.integrated, features=rownames(obj.integrated), vars.to.regress="perc.mt")
 h2<-DoHeatmap(obj.integrated,features=heatmap_features)
 ggsave(paste0(args$file_prefix,"Heatmap_RNA.pdf"),path=args$output_dir,width=22,height=17,units="in",h2)
 

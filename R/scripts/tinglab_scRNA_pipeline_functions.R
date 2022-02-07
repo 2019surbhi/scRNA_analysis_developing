@@ -423,11 +423,16 @@ s.obj.integrated@project.name<-project.name
 }
 
 
-HarmonyIntegration <- function(s.obj, project.name, nfeatures=3000, pcs=1:35, verbose=FALSE){
-        s.obj <- FindVariableFeatures(s.obj, nfeatures=nfeatures)
-	s.obj <- ScaleData(s.obj, vars.to.regress='perc.mt', assay="RNA", verbose=verbose)
+HarmonyIntegration <- function(s.obj, project.name, nfeatures=3000, pcs=1:35, custom.hvgs = '', verbose=FALSE){
+        if(length(custom.hvgs) <= 1){
+		s.obj <- FindVariableFeatures(s.obj, nfeatures=nfeatures)
+	} else {
+		s.obj@assays$RNA@var.features <- custom.hvgs
+	}
+	s.obj <- ScaleData(s.obj, assay="RNA", verbose=verbose)
+	saveRDS(s.obj, file = "intermediary-merged.Rds")
 	s.obj <- RunPCA(s.obj, assay="RNA", verbose=verbose, npcs=50)
-	s.obj@project.name <-project.name
+	s.obj@project.name <- project.name
 	s.obj <- RunHarmony(s.obj, group.by.vars="orig.ident", dims=pcs, verbose=verbose)
         s.obj<-RunUMAP(s.obj, dims=args$pca_dimensions, reduction='harmony', verbose=args$verbose)
 	return(s.obj)
@@ -702,7 +707,7 @@ print_clustree_png<-function(s.obj,prefix,out_dir='./',file_prefix,verbose=FALSE
 # out_dir - output directory path to store the plots
 # file_prefix - file prefix name
 
-print_geneplots_on_clustree<-function(s.obj,genes, prefix='integrated_snn_res.',assay='integrated', fun_use='median', out_dir, file_prefix, verbose=FALSE)
+print_geneplots_on_clustree<-function(s.obj,genes, prefix='RNA_snn_res.',assay='RNA', fun_use='median', out_dir, file_prefix, verbose=FALSE)
 {
  validated_genes<-genes[which(genes %in% rownames(s.obj)==TRUE)]
  if(length(validated_genes)>0)
