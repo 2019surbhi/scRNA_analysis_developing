@@ -1,6 +1,3 @@
-# Linux or HPC dependencies
-#library(argparser)
-library(future)
 
 # Data wrnaggling dependencies
 library(data.table)
@@ -185,4 +182,5 @@ get_genes_in_pseudotime_plot<-function(cds,out_dir,fname,min_exp=0.5)
   ggsave(paste0(out_dir,fname,'.png'),
          width=11, height=8.5,units="in",pg)
 }
+
 
