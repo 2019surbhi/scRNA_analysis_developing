@@ -1,6 +1,4 @@
-# Linux or HPC dependencies
-#library(argparser)
-library(future)
+
 # Data wrnaggling dependencies
 library(data.table)
 library(dplyr)
