@@ -29,10 +29,8 @@ out_dir<-'/Users/sonas/Desktop/2021_04_06_monocle_2021_02_23_ureter10_uro/'
 obj<-readRDS(paste0(input_dir,object))
 
 #Manually create cds object [different from Seurat wrapper]
-cds<-create_cds(obj)
 
-#Pre-process
-cds<-preprocess(cds)
+create_and_process_cds(obj,verbose=TRUE)
 
 # Transfer Seurat UMAP info and cluster
 cds<-transfer_seurat_umap_cluster(obj,cds)
