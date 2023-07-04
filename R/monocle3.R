@@ -30,10 +30,8 @@ obj<-readRDS(paste0(input_dir,object))
 
 #Manually create cds object [different from Seurat wrapper]
 
-create_and_process_cds(obj,verbose=TRUE)
+cds<-create_and_process_cds(obj,verbose=TRUE)
 
-# Transfer Seurat UMAP info and cluster
-cds<-transfer_seurat_umap_cluster(obj,cds)
 
 # Cluster
 cds<- cluster_cells(cds, reduction_method = "UMAP")
